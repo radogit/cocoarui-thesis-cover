@@ -5,9 +5,14 @@
 
   "border": {"thicknessCm": 1, "opacityPercent": 100, "color": "#000000"},
 
+  "masks": {
+    "lenses": {"file": "1-lens-mask.png", "depthCm": 0}
+  },
+
   "layers": [
-    {"file": "1.png", "depthCm": 0, "opacityPercent": 100, "blend": "multiply"},
-    {"file": "2.png", "depthCm": 5, "opacityPercent": 100, "blend": "normal"}
+    {"file": "1.png",         "depthCm": 0, "opacityPercent": 100, "blend": "multiply"},
+    {"file": "2.png",         "depthCm": 5, "opacityPercent": 100, "blend": "normal", "mask": "lenses", "show": "inside"},
+    {"file": "2-blurred.png", "depthCm": 5, "opacityPercent": 100, "blend": "normal", "mask": "lenses", "show": "outside"}
   ],
 
   "spheres": {

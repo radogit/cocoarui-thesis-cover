@@ -65,6 +65,29 @@ Put the images in `src/assets/layers/`. **Export every layer on the same canvas 
 | `opacityPercent` | 0–100, like a layer's opacity in Photoshop/Affinity |
 | `blend` | `normal`, `multiply` or `screen`, as in Photoshop/Affinity. The blend applies to what's drawn behind the layer (deeper layers, spheres, the inner colour) |
 | `scale` | optional; overrides the automatic depth scaling |
+| `mask` | optional; name of a mask from `"masks"` (see below) |
+| `show` | with `mask`: `inside` = visible only where the mask is, `outside` = visible everywhere except there |
+
+### Masks (`"masks": {...}`)
+
+A mask is an invisible shape that decides where masked layers can be seen. The example uses the
+glasses' lenses: the sharp title (`2.png`) shows only through the lenses, the blurred title
+(`2-blurred.png`) everywhere else.
+
+```json
+"masks": {"lenses": {"file": "1-lens-mask.png", "depthCm": 0}},
+"layers": [
+  {"file": "2.png",         "depthCm": 5, "mask": "lenses", "show": "inside"},
+  {"file": "2-blurred.png", "depthCm": 5, "mask": "lenses", "show": "outside"}
+]
+```
+
+- Draw the mask on the same canvas as the layers: **opaque where the mask is** (any colour), transparent
+  elsewhere. Pixels count as "mask" above 50% opacity, so edges are hard; let the shape run slightly under
+  the glasses frame so the frame hides the edge.
+- `depthCm` places the mask in depth. At the glasses' depth, the masked area slides over deeper
+  layers when you move, as with real glasses. At the masked layer's own depth it stays fixed to it.
+- Up to 8 masks; any number of layers can use the same one.
 
 ### Spheres (`"spheres": {...}`)
 

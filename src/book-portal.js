@@ -244,12 +244,51 @@ export const bookPortalComponent = {
       vertexColors: true, side: THREE.BackSide, toneMapped: false,
     })))
 
-    // 3) Cover layers, back to front. Layer i gets renderOrder 2i+1; spheres get the even numbers
-    //    in between, according to their depth, so they appear between the right layers.
     const loader = new THREE.TextureLoader()
     const renderer = this.el.sceneEl.renderer
     const maxAniso = renderer ? renderer.capabilities.getMaxAnisotropy() : 1
     const base = new URL(cfgUrl || '/', window.location.href)
+
+    // 2b) Masks (layers.json "masks"): invisible shapes, e.g. the glasses' lenses, that mark where
+    //     a layer may be seen. Each mask is a plane at its own depth that writes one bit of the
+    //     stencil buffer wherever its image is opaque. Masked layers then draw only where that bit
+    //     is set ("show": "inside") or only where it is not ("show": "outside"). Because the mask
+    //     sits at its own depth, the masked area shifts over deeper layers with parallax, like
+    //     looking through real glasses.
+    const maskBits = {}
+    Object.entries(cfg.masks || {}).forEach(([name, m], k) => {
+      if (!m || !m.file) return
+      if (k > 7) { console.warn(`[book-portal] at most 8 masks; ignoring "${name}"`); return }
+      const bit = 1 << k
+      maskBits[name] = bit
+      const z = -cm(m.depthCm || 0)
+      const s = this.depthScale(z)
+      const mat = new THREE.MeshBasicMaterial({
+        colorWrite: false, depthWrite: false,
+        alphaTest: 0.5,  // only the opaque part of the mask image writes the stencil
+        stencilWrite: true, stencilRef: bit, stencilWriteMask: bit,
+        stencilFunc: THREE.AlwaysStencilFunc, stencilZPass: THREE.ReplaceStencilOp,
+      })
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w * s, h * s), mat)
+      mesh.position.set(0, 0, z)
+      mesh.renderOrder = -9  // opaque pass, before the tunnel and all layers
+      mesh.visible = false   // until loaded; without its image it would mask the whole cover
+      this.portalRoot.add(mesh)
+      const fileUrl = new URL(m.file, base).href
+      loader.load(fileUrl, (tex) => {
+        mat.map = tex
+        mat.needsUpdate = true
+        mesh.visible = true
+      }, undefined, () => console.error(`[book-portal] could not load mask image ${fileUrl}`))
+    })
+    if (Object.keys(maskBits).length && renderer) {
+      const attrs = renderer.getContext().getContextAttributes()
+      if (attrs && !attrs.stencil) console.warn('[book-portal] the WebGL canvas has no stencil buffer; masks will not work')
+      this.usesStencil = true
+    }
+
+    // 3) Cover layers, back to front. Layer i gets renderOrder 2i+1; spheres get the even numbers
+    //    in between, according to their depth, so they appear between the right layers.
     layers.forEach((layer, i) => {
       const s = layer.scale != null ? layer.scale : this.depthScale(layer.z)
       let opacity = 1
@@ -277,6 +316,23 @@ export const bookPortalComponent = {
       } else if (blend !== 'normal') {
         console.warn(`[book-portal] unknown blend "${layer.blend}" for ${layer.file}; ` +
           `use normal, ${Object.keys(BLEND_MODES).join(', ')}`)
+      }
+      if (layer.mask) {
+        const bit = maskBits[layer.mask]
+        if (bit) {
+          const show = (layer.show || 'inside').toLowerCase()
+          Object.assign(mat, {
+            stencilWrite: true,  // in three.js this switches the stencil test on
+            stencilRef: bit, stencilFuncMask: bit, stencilWriteMask: 0,  // test only, never modify
+            stencilFunc: show === 'outside' ? THREE.NotEqualStencilFunc : THREE.EqualStencilFunc,
+          })
+          if (show !== 'inside' && show !== 'outside') {
+            console.warn(`[book-portal] "show" for ${layer.file} must be "inside" or "outside"; using inside`)
+          }
+        } else {
+          console.warn(`[book-portal] layer ${layer.file} uses mask "${layer.mask}", which is not defined in ` +
+            `"masks" (defined: ${Object.keys(maskBits).join(', ') || 'none'})`)
+        }
       }
       const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w * s, h * s), mat)
       mesh.position.set(0, 0, layer.z)
@@ -392,6 +448,12 @@ export const bookPortalComponent = {
   },
 
   tick(time, deltaMs) {
+    // Masks need an empty stencil each frame. three.js clears it only with autoClear and
+    // autoClearStencil on, and 8th Wall changes the renderer's clear settings, so make sure.
+    const renderer = this.el.sceneEl.renderer
+    if (this.usesStencil && renderer && !(renderer.autoClear && renderer.autoClearStencil)) {
+      renderer.clearStencil()
+    }
     if (!deltaMs) return
     const dt = Math.min(deltaMs / 1000, 1 / 20)  // avoid huge steps after tab switches / tracking stalls
     const {sp} = this
