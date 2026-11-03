@@ -82,6 +82,27 @@ Put the images in `src/assets/layers/`. **Export every layer on the same canvas 
 | `mask` | optional; name of a mask from `"masks"` (see below) |
 | `show` | with `mask`: `inside` = visible only where the mask is, `outside` = visible everywhere except there |
 
+### Sphere streams (`"streams": [...]` inside `"spheres"`)
+
+Spheres can come from several streams, e.g. one aimed at each lens. Each stream is a list entry that
+overrides any sphere setting; everything it doesn't set comes from the surrounding `"spheres"` values.
+`spawnRate` is per stream (two streams at 5 = 10 spheres per second). Without `"streams"` there is one stream.
+
+```json
+"streams": [
+  {"name": "left lens",  "originCmX": -5.5, "originCmY": 2, "spawnRate": 5},
+  {"name": "right lens", "originCmX": 6.1,  "originCmY": 2, "spawnRate": 5, "spreadDegX": 2}
+]
+```
+
+| key | meaning |
+|---|---|
+| `name` | optional label, for your own reference |
+| `originCmX`, `originCmY` | the stream's start point, in cm from the cover's centre (+x right, +y up). `out`: at `spawnDepthCm` behind the cover; `in`: at `startDistanceCm` in front of it. `spawnRangeCm*` (`out`) / `startRangeCm*` (`in`) scatter starts around it |
+| `targetCmX`, `targetCmY` | `in` only: centre of the entry area on the cover; `spawnRangeCmX/Y` is the area around it |
+
+The lens centres on the cover are about (−5.5, 2) and (6.1, 2) cm.
+
 ### Masks (`"masks": {...}`)
 
 A mask is an invisible shape that decides where masked layers can be seen. The example uses the

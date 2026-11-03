@@ -30,6 +30,12 @@ const SPHERE_DEFAULTS = {
   lifetimeS: 1.8,            // total life, from leaving the vanishing point
   fadeS: 0.7,                // fade-out at the end of the life
   opacityPercent: [30, 60],  // random opacity per sphere, between these two values
+  originCmX: 0,              // centre of the start point: 'out' = behind the cover at spawnDepthCm,
+  originCmY: 0,              //   'in' = in front of it at startDistanceCm (cm from the cover's centre)
+  targetCmX: 0,              // 'in': centre of the entry area on the cover (cm from the cover's centre)
+  targetCmY: 0,
+  streams: null,             // optional list of streams; each one overrides any of these settings
+                             // (e.g. its own origin, spread, spawnRate) and spawns at its own spawnRate
   spawnRangeCmX: 0,          // vanishing point spread left/right of the centre: a number n = random in [-n, n],
   spawnRangeCmY: 0,          // or [min, max] (negative = left/down). Same for up/down.
   aim: 'straight',           // 'straight' = perpendicular out of the cover (toward a viewer facing it head-on),
@@ -88,7 +94,6 @@ export const bookPortalComponent = {
     const THREE = AFRAME.THREE
     this.THREE = THREE
     this.spheres = []
-    this.spawnAccumulator = 0
     this.groundY = null
     this.groundCenter = new THREE.Vector3()
     this.worldQuat = new THREE.Quaternion()
@@ -195,7 +200,16 @@ export const bookPortalComponent = {
       this.spawnDepth = this.sp.spawnDepthCm != null ? cm(this.sp.spawnDepthCm) : this.tunnelDepth * 0.9
     }
     // A vanishing point deeper than the tunnel would sit behind its back wall: extend the tunnel.
-    this.tunnelDepth = Math.max(this.tunnelDepth, this.spawnDepth + cm(0.5))
+    // Streams: each is the shared sphere settings plus its own overrides.
+    const {streams, ...shared} = this.sp
+    this.streams = (Array.isArray(streams) && streams.length ? streams : [{}]).map(st => {
+      const merged = {...shared, ...st}
+      merged.spawnDepth = st.spawnDepthCm != null ? cm(st.spawnDepthCm) : this.spawnDepth
+      merged.acc = 0  // spawn accumulator
+      return merged
+    })
+    const deepestSpawn = Math.max(...this.streams.map(st => st.spawnDepth))
+    this.tunnelDepth = Math.max(this.tunnelDepth, deepestSpawn + cm(0.5))
     const d = this.tunnelDepth
     const backScale = this.depthScale(-d)
 
@@ -408,33 +422,31 @@ export const bookPortalComponent = {
   // a random offset within startRangeCmX/Y), fly to a random entry point within spawnRangeCmX/Y on the
   // cover and continue on the same line to spawnDepthCm behind it. Independent of where the phone is.
   // Returns {start, vel, life} in local units.
-  incomingPath() {
+  incomingPath(sp) {
     const THREE = this.THREE
-    const {sp} = this
     const lpm = this.localPerMeter()
     const cmLocal = lpm / 100
     const start = new THREE.Vector3(
-      randomIn(sp.startRangeCmX, true) * cmLocal,
-      randomIn(sp.startRangeCmY, true) * cmLocal,
+      (sp.originCmX + randomIn(sp.startRangeCmX, true)) * cmLocal,
+      (sp.originCmY + randomIn(sp.startRangeCmY, true)) * cmLocal,
       Math.max(1, sp.startDistanceCm) * cmLocal)
     const entry = new THREE.Vector3(
-      randomIn(sp.spawnRangeCmX, true) * cmLocal,
-      randomIn(sp.spawnRangeCmY, true) * cmLocal,
+      (sp.targetCmX + randomIn(sp.spawnRangeCmX, true)) * cmLocal,
+      (sp.targetCmY + randomIn(sp.spawnRangeCmY, true)) * cmLocal,
       0)
     const dir = new THREE.Vector3().subVectors(entry, start).normalize()
-    const dist = start.distanceTo(entry) + this.spawnDepth / -dir.z  // to the cover, then to spawn depth
+    const dist = start.distanceTo(entry) + sp.spawnDepth / -dir.z  // to the cover, then to spawn depth
     const speed = (sp.speedCmPerS / 100) * lpm * (0.85 + Math.random() * 0.3)
     return {start, vel: dir.multiplyScalar(speed), life: dist / speed}
   },
 
-  spawnSphere() {
+  spawnSphere(sp) {
     const THREE = this.THREE
-    const {sp} = this
     const lpm = this.localPerMeter()
 
     if (sp.direction === 'in') {
-      const path = this.incomingPath()
-      this.addSphere(path.start, path.vel, 'incoming', path.life)
+      const path = this.incomingPath(sp)
+      this.addSphere(path.start, path.vel, 'incoming', path.life, sp)
       return
     }
 
@@ -442,9 +454,9 @@ export const bookPortalComponent = {
     // spawnRangeCmX / spawnRangeCmY.
     const cmLocal = lpm / 100
     const start = new THREE.Vector3(
-      randomIn(sp.spawnRangeCmX, true) * cmLocal,
-      randomIn(sp.spawnRangeCmY, true) * cmLocal,
-      -this.spawnDepth)
+      (sp.originCmX + randomIn(sp.spawnRangeCmX, true)) * cmLocal,
+      (sp.originCmY + randomIn(sp.spawnRangeCmY, true)) * cmLocal,
+      -sp.spawnDepth)
 
     // Base direction: toward the camera (the viewer's face), or straight out of the cover.
     const dir = new THREE.Vector3(0, 0, 1)
@@ -458,13 +470,12 @@ export const bookPortalComponent = {
     dir.applyAxisAngle(this.axisY, (Math.random() * 2 - 1) * sp.spreadDegX * DEG)
     dir.applyAxisAngle(this.axisX, (Math.random() * 2 - 1) * sp.spreadDegY * DEG)
     const vel = dir.multiplyScalar((sp.speedCmPerS / 100) * lpm * (0.85 + Math.random() * 0.3))
-    this.addSphere(start, vel, 'portal', sp.lifetimeS)
+    this.addSphere(start, vel, 'portal', sp.lifetimeS, sp)
   },
 
   // Create a sphere at local position start with local velocity vel.
-  addSphere(start, vel, phase, life) {
+  addSphere(start, vel, phase, life, sp) {
     const THREE = this.THREE
-    const {sp} = this
     const cmLocal = this.localPerMeter() / 100
     const opacity = randomIn(sp.opacityPercent) / 100
 
@@ -503,6 +514,7 @@ export const bookPortalComponent = {
     this.spheres.push({
       mesh, vel, r, opacity,       // portal phase: r and vel in local units
       phase, age: 0, life,
+      sp,                          // the stream's settings
       mask,                        // mask still to pass (null = none / already passed)
     })
   },
@@ -594,11 +606,13 @@ export const bookPortalComponent = {
       this.worldScale = this.worldScaleVec.y
       this.updateGround()
 
-      this.spawnAccumulator += dt * sp.spawnRate
-      while (this.spawnAccumulator >= 1) {
-        this.spawnAccumulator -= 1
-        if (this.spheres.length >= sp.maxSpheres) this.removeSphere(0)  // oldest
-        this.spawnSphere()
+      for (const st of this.streams) {
+        st.acc += dt * st.spawnRate
+        while (st.acc >= 1) {
+          st.acc -= 1
+          if (this.spheres.length >= sp.maxSpheres) this.removeSphere(0)  // oldest
+          this.spawnSphere(st)
+        }
       }
     }
 
@@ -616,7 +630,7 @@ export const bookPortalComponent = {
             const x = p.x - s.vel.x * dt * (1 - f)
             const y = p.y - s.vel.y * dt * (1 - f)
             const coverage = this.maskCoverage(s.mask, x, y, s.r)
-            if (coverage > 0 && coverage * 100 >= this.sp.passPercent) {
+            if (coverage > 0 && coverage * 100 >= s.sp.passPercent) {
               s.maskPassed = true
             } else {
               p.set(x, y, s.mask.z)  // stopped by the frame
@@ -644,7 +658,7 @@ export const bookPortalComponent = {
           const y = p.y - s.vel.y * dt * (1 - f)
           const r = s.r * Math.min(1, s.age / 0.15)  // current size (spheres grow in at spawn)
           const coverage = this.maskCoverage(s.mask, x, y, r)
-          if (coverage > 0 && coverage * 100 >= this.sp.passPercent) s.maskPassed = true
+          if (coverage > 0 && coverage * 100 >= s.sp.passPercent) s.maskPassed = true
           else s.perishAge = 0  // blocked by the frame: keeps flying, stays masked, fades out
         }
         if (s.mask && s.maskPassed && p.z - s.r >= s.mask.z) {
@@ -675,7 +689,7 @@ export const bookPortalComponent = {
       let perish = 1
       if (s.perishAge != null) {
         s.perishAge += dt
-        perish = sp.perishFadeS > 0 ? 1 - s.perishAge / sp.perishFadeS : 0
+        perish = s.sp.perishFadeS > 0 ? 1 - s.perishAge / s.sp.perishFadeS : 0
       }
       if (perish <= 0 || s.age >= s.life) {
         this.removeSphere(i)
@@ -684,7 +698,7 @@ export const bookPortalComponent = {
       const grow = Math.min(1, s.age / 0.15)  // pop in from nothing at the vanishing point
       s.mesh.scale.setScalar(s.r * Math.max(0.01, grow))
       const fadeLeft = s.life - s.age
-      s.mesh.material.opacity = s.opacity * perish * (sp.fadeS > 0 ? Math.min(1, fadeLeft / sp.fadeS) : 1)
+      s.mesh.material.opacity = s.opacity * perish * (s.sp.fadeS > 0 ? Math.min(1, fadeLeft / s.sp.fadeS) : 1)
 
       if (s.phase !== 'world') {
         s.mesh.renderOrder = this.sphereRenderOrder(s.mesh.position.z)

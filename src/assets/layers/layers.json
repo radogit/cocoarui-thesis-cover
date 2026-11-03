@@ -16,18 +16,21 @@
   ],
 
   "spheres": {
-    "spawnRate": 10,
     "maxSpheres": 140,
     "radiusCm": [0.5, 1.5],
     "speedCmPerS": 40,
     "lifetimeS": 3.2,
     "fadeS": 0.7,
     "opacityPercent": [30, 60],
+    "streams": [
+      {"name": "left lens",  "originCmX": -5.5, "originCmY": 2, "spawnRate": 5},
+      {"name": "right lens", "originCmX": 6.1,  "originCmY": 2, "spawnRate": 5}
+    ],
     "spawnRangeCmX": 0,
-    "spawnRangeCmY": [-4, 7.4],
+    "spawnRangeCmY": 0,
     "aim": "straight",
-    "spreadDegX": 9,
-    "spreadDegY": 0,
+    "spreadDegX": 3,
+    "spreadDegY": 5,
     "spawnDepthCm": 55,
     "gravity": false,
     "mask": "lenses",
