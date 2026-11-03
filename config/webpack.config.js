@@ -102,7 +102,7 @@ const config = {
   output: {
     filename: 'bundle.js',
     path: distPath,
-    publicPath: '/',
+    publicPath: '',  // relative: works at / (dev server) and under /<repo>/ (GitHub Pages)
   },
   plugins: [
     new HtmlWebpackPlugin({

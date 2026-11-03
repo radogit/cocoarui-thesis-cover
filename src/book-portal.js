@@ -48,7 +48,7 @@ const BLEND_MODES = {
 export const bookPortalComponent = {
   schema: {
     coverHeightMeters: {default: 0.24},  // real height of the printed cover; sets the physical scale
-    layers: {default: '/assets/layers/layers.json'},  // inner-world + sphere config; '' = defaults only
+    layers: {default: 'assets/layers/layers.json'},  // inner-world + sphere config; '' = defaults only
     innerColor: {default: '#383DAA'},    // used only if layers.json has no innerColor
     tunnelDepth: {default: 1.2},         // portal depth in crop heights, used only when there are no layers
     // Only used with "gravity": true:

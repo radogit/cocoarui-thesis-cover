@@ -66,7 +66,7 @@ img.save(os.path.join(out_dir, f'{args.name}-cover.jpg'), quality=92)
 
 k = TARGET_H / ch  # original px -> 480x640 crop space
 config = {
-    'imagePath': f'/targets/{args.name}.jpg',
+    'imagePath': f'targets/{args.name}.jpg',
     'metadata': {
         # Full cover size in units of the tracked crop's height (the crop is centered on the cover).
         'coverWidth': round(W / ch, 4),
