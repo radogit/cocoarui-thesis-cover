@@ -141,6 +141,7 @@ then fade and disappear.
 | `lifetimeS` | 2.2 | total life from the vanishing point |
 | `fadeS` | 0.7 | fade-out during the last part of the life |
 | `opacityPercent` | [30, 60] | random opacity per sphere, between these values |
+| `colors` | violets/magentas/cyans | list of hex colours, e.g. `["#8A5CFF", "#40C4FF"]`; each sphere picks one at random. Repeat a colour to make it more frequent. Can differ per stream |
 | `spawnRangeCmX` | 0 | where spheres start, left/right of the centre: `4` = random within ±4 cm, or `[min, max]` (e.g. `[-2, 6]`) |
 | `spawnRangeCmY` | 0 | same, up/down |
 | `direction` | `out` | `out` = spheres fly from the vanishing point out of the cover. `in` = they start at a point straight out in front of the cover (`startDistanceCm`), fly into the cover, entering at a random point within `spawnRangeCmX`/`Y` and fading out at `spawnDepthCm`. With `in`, `aim`, `spreadDeg*`, `gravity` and `lifetimeS` are not used; with a `mask`, spheres that reach the mask's plane with at least `passPercent` inside it fly on (then visible only through the mask), the others stop there and fade out (each sphere lives until it reaches the depth) |

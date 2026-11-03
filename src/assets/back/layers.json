@@ -22,6 +22,7 @@
     "speedCmPerS": 40,
     "fadeS": 0.7,
     "opacityPercent": [30, 60],
+    "colors": ["#8A5CFF", "#E040FB", "#FF6EC7", "#40C4FF", "#7C4DFF"],
     "streams": [
       {"name": "left lens",  "originCmX": -5.5, "originCmY": 2, "targetCmX": -5.5, "targetCmY": 2, "spawnRate": 5},
       {"name": "right lens", "originCmX": 6.1,  "originCmY": 2, "targetCmX": 6.1,  "targetCmY": 2, "spawnRate": 5}

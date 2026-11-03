@@ -34,6 +34,8 @@ const SPHERE_DEFAULTS = {
   originCmY: 0,              //   'in' = in front of it at startDistanceCm (cm from the cover's centre)
   targetCmX: 0,              // 'in': centre of the entry area on the cover (cm from the cover's centre)
   targetCmY: 0,
+  colors: null,              // list of hex colours, e.g. ["#8A5CFF", "#40C4FF"]; each sphere picks one at random
+                             // (null = random violets, magentas and cyans)
   streams: null,             // optional list of streams; each one overrides any of these settings
                              // (e.g. its own origin, spread, spawnRate) and spawns at its own spawnRate
   spawnRangeCmX: 0,          // vanishing point spread left/right of the centre: a number n = random in [-n, n],
@@ -479,8 +481,14 @@ export const bookPortalComponent = {
     const cmLocal = this.localPerMeter() / 100
     const opacity = randomIn(sp.opacityPercent) / 100
 
-    const hue = (0.72 + Math.random() * 0.4) % 1  // violets, magentas, cyans
-    const color = new THREE.Color().setHSL(hue, 0.85, 0.6)
+    // Colour: a random pick from the "colors" list, or a random violet/magenta/cyan without one.
+    let color
+    const palette = Array.isArray(sp.colors) ? sp.colors.filter(Boolean) : []
+    if (palette.length) {
+      color = new THREE.Color(palette[Math.floor(Math.random() * palette.length)])
+    } else {
+      color = new THREE.Color().setHSL((0.72 + Math.random() * 0.4) % 1, 0.85, 0.6)
+    }
     // Lambert = diffuse only: matte, no specular highlight.
     const mat = new THREE.MeshLambertMaterial({
       color, emissive: color, emissiveIntensity: 0.25,
