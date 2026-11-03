@@ -25,11 +25,13 @@ const DEG = Math.PI / 180
 const SPHERE_DEFAULTS = {
   spawnRate: 3,              // spheres per second while the cover is tracked
   maxSpheres: 40,
-  radiusCm: 1.5,
+  radiusCm: 1.5,             // sphere radius; a number, or [min, max] for a random size per sphere
   speedCmPerS: 40,
   lifetimeS: 1.8,            // total life, from leaving the vanishing point
   fadeS: 0.7,                // fade-out at the end of the life
   opacityPercent: [30, 60],  // random opacity per sphere, between these two values
+  spawnRangeCmX: 0,          // vanishing point spread left/right of the centre: a number n = random in [-n, n],
+  spawnRangeCmY: 0,          // or [min, max] (negative = left/down). Same for up/down.
   aim: 'straight',           // 'straight' = perpendicular out of the cover (toward a viewer facing it head-on),
                              // 'camera' = toward the phone's current position
   spreadDegX: 3,             // max random deviation left/right from the aim direction
@@ -43,6 +45,13 @@ const SPHERE_DEFAULTS = {
 const BLEND_MODES = {
   multiply: {src: 'ZeroFactor', dst: 'SrcColorFactor', glsl: 'gl_FragColor.rgb = mix(vec3(1.0), gl_FragColor.rgb, gl_FragColor.a);'},
   screen: {src: 'OneFactor', dst: 'OneMinusSrcColorFactor', glsl: 'gl_FragColor.rgb *= gl_FragColor.a;'},
+}
+
+// A config value that is either a number or a [min, max] range: returns a random value in it.
+const randomIn = (v, symmetric = false) => {
+  if (Array.isArray(v)) return v[0] + Math.random() * (v[1] - v[0])
+  const n = Number(v) || 0
+  return symmetric ? (Math.random() * 2 - 1) * n : n
 }
 
 export const bookPortalComponent = {
@@ -366,8 +375,13 @@ export const bookPortalComponent = {
     const {sp} = this
     const lpm = this.localPerMeter()
 
-    // Vanishing point: centre of the cover, spawnDepth behind it.
-    const start = new THREE.Vector3(0, 0, -this.spawnDepth)
+    // Vanishing point: centre of the cover, spawnDepth behind it, plus a random offset within
+    // spawnRangeCmX / spawnRangeCmY.
+    const cmLocal = lpm / 100
+    const start = new THREE.Vector3(
+      randomIn(sp.spawnRangeCmX, true) * cmLocal,
+      randomIn(sp.spawnRangeCmY, true) * cmLocal,
+      -this.spawnDepth)
 
     // Base direction: toward the camera (the viewer's face), or straight out of the cover.
     const dir = new THREE.Vector3(0, 0, 1)
@@ -382,8 +396,7 @@ export const bookPortalComponent = {
     dir.applyAxisAngle(this.axisX, (Math.random() * 2 - 1) * sp.spreadDegY * DEG)
     const vel = dir.multiplyScalar((sp.speedCmPerS / 100) * lpm * (0.85 + Math.random() * 0.3))
 
-    const [oMin, oMax] = Array.isArray(sp.opacityPercent) ? sp.opacityPercent : [sp.opacityPercent, sp.opacityPercent]
-    const opacity = (oMin + Math.random() * (oMax - oMin)) / 100
+    const opacity = randomIn(sp.opacityPercent) / 100
 
     const hue = (0.72 + Math.random() * 0.4) % 1  // violets, magentas, cyans
     const color = new THREE.Color().setHSL(hue, 0.85, 0.6)
@@ -392,7 +405,7 @@ export const bookPortalComponent = {
       color, emissive: color, emissiveIntensity: 0.25,
       transparent: true, opacity, depthWrite: false,
     })
-    const r = (sp.radiusCm / 100) * lpm
+    const r = randomIn(sp.radiusCm) * cmLocal
     const mesh = new THREE.Mesh(this.sphereGeometry, mat)
     mesh.scale.setScalar(r * 0.01)
     mesh.position.copy(start)

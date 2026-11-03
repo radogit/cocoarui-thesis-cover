@@ -101,11 +101,13 @@ then fade and disappear.
 |---|---|---|
 | `spawnRate` | 3 | spheres per second while the cover is tracked |
 | `maxSpheres` | 40 | the oldest is removed beyond this |
-| `radiusCm` | 1.5 | |
+| `radiusCm` | 1.5 | sphere radius; a number, or `[min, max]` for a random size per sphere |
 | `speedCmPerS` | 40 | ±15% random per sphere |
 | `lifetimeS` | 2.2 | total life from the vanishing point |
 | `fadeS` | 0.7 | fade-out during the last part of the life |
 | `opacityPercent` | [30, 60] | random opacity per sphere, between these values |
+| `spawnRangeCmX` | 0 | where spheres start, left/right of the centre: `4` = random within ±4 cm, or `[min, max]` (e.g. `[-2, 6]`) |
+| `spawnRangeCmY` | 0 | same, up/down |
 | `aim` | `"straight"` | `"straight"` = perpendicular out of the cover; `"camera"` = toward the phone's current position |
 | `spreadDegX` | 3 | max deviation left/right, in degrees (0 = exactly perpendicular) |
 | `spreadDegY` | 3 | max deviation up/down, in degrees |
