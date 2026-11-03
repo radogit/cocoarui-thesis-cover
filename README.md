@@ -108,6 +108,9 @@ then fade and disappear.
 | `opacityPercent` | [30, 60] | random opacity per sphere, between these values |
 | `spawnRangeCmX` | 0 | where spheres start, left/right of the centre: `4` = random within ±4 cm, or `[min, max]` (e.g. `[-2, 6]`) |
 | `spawnRangeCmY` | 0 | same, up/down |
+| `mask` | null | name of a mask from `"masks"`. Behind the mask's plane, spheres show only inside the mask. When a sphere reaches that plane, the share of it inside the mask decides: enough (`passPercent`) and it flies on, fully visible once in front of the plane; otherwise it stays masked and fades out |
+| `passPercent` | 50 | with `mask`: how much of a sphere (0–100) must be inside the mask to pass. Lower = more permissive |
+| `perishFadeS` | 0.25 | with `mask`: fade-out time, in seconds, for spheres that don't pass |
 | `aim` | `"straight"` | `"straight"` = perpendicular out of the cover; `"camera"` = toward the phone's current position |
 | `spreadDegX` | 3 | max deviation left/right, in degrees (0 = exactly perpendicular) |
 | `spreadDegY` | 3 | max deviation up/down, in degrees |

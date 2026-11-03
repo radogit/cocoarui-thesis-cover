@@ -38,6 +38,10 @@ const SPHERE_DEFAULTS = {
   spreadDegY: 3,             // max random deviation up/down
   spawnDepthCm: null,        // vanishing point depth behind the cover; null = 1 cm in front of the deepest layer
   gravity: false,            // true = fall, bounce and roll once out of the portal
+  mask: null,                // name of a mask from "masks": behind the mask's plane spheres show only inside it;
+  passPercent: 50,           // with mask: share of the sphere that must be inside the mask to fly on
+  perishFadeS: 0.25,         // with mask: how fast spheres that don't pass fade out (they stay masked meanwhile)
+                             // at the plane, spheres outside the mask perish and those inside fly on, unmasked
 }
 
 // Photoshop-style blend modes for layers. The shader mixes transparent pixels toward the mode's
@@ -265,6 +269,7 @@ export const bookPortalComponent = {
     //     sits at its own depth, the masked area shifts over deeper layers with parallax, like
     //     looking through real glasses.
     const maskBits = {}
+    this.masks = {}  // name -> {bit, z, pw, ph, alpha, iw, ih}; alpha is filled in once the image loads
     Object.entries(cfg.masks || {}).forEach(([name, m], k) => {
       if (!m || !m.file) return
       if (k > 7) { console.warn(`[book-portal] at most 8 masks; ignoring "${name}"`); return }
@@ -280,6 +285,8 @@ export const bookPortalComponent = {
       })
       const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w * s, h * s), mat)
       mesh.position.set(0, 0, z)
+      const info = {bit, z, pw: w * s, ph: h * s, alpha: null, iw: 0, ih: 0}
+      this.masks[name] = info
       mesh.renderOrder = -9  // opaque pass, before the tunnel and all layers
       mesh.visible = false   // until loaded; without its image it would mask the whole cover
       this.portalRoot.add(mesh)
@@ -288,6 +295,17 @@ export const bookPortalComponent = {
         mat.map = tex
         mat.needsUpdate = true
         mesh.visible = true
+        // Keep the mask's alpha on the CPU, to test where spheres cross it.
+        const img = tex.image
+        const canvas = document.createElement('canvas')
+        canvas.width = img.width
+        canvas.height = img.height
+        const ctx = canvas.getContext('2d', {willReadFrequently: true})
+        ctx.drawImage(img, 0, 0)
+        const rgba = ctx.getImageData(0, 0, img.width, img.height).data
+        const alpha = new Uint8Array(img.width * img.height)
+        for (let p = 0; p < alpha.length; p++) alpha[p] = rgba[p * 4 + 3]
+        Object.assign(info, {alpha, iw: img.width, ih: img.height})
       }, undefined, () => console.error(`[book-portal] could not load mask image ${fileUrl}`))
     })
     if (Object.keys(maskBits).length && renderer) {
@@ -405,6 +423,22 @@ export const bookPortalComponent = {
       color, emissive: color, emissiveIntensity: 0.25,
       transparent: true, opacity, depthWrite: false,
     })
+    // Sphere mask: while behind the mask's plane, draw only where the mask is (stencil test).
+    let mask = null
+    if (sp.mask) {
+      mask = this.masks && this.masks[sp.mask]
+      if (!mask) {
+        if (!this.warnedSphereMask) console.warn(`[book-portal] spheres use mask "${sp.mask}", which is not defined in "masks"`)
+        this.warnedSphereMask = true
+      } else if (start.z >= mask.z) {
+        mask = null  // starts in front of the mask: nothing to pass through
+      } else {
+        Object.assign(mat, {
+          stencilWrite: true, stencilRef: mask.bit, stencilFuncMask: mask.bit, stencilWriteMask: 0,
+          stencilFunc: THREE.EqualStencilFunc,
+        })
+      }
+    }
     const r = randomIn(sp.radiusCm) * cmLocal
     const mesh = new THREE.Mesh(this.sphereGeometry, mat)
     mesh.scale.setScalar(r * 0.01)
@@ -415,6 +449,7 @@ export const bookPortalComponent = {
     this.spheres.push({
       mesh, vel, r, opacity,       // portal phase: r and vel in local units
       phase: 'portal', age: 0,
+      mask,                        // mask still to pass (null = none / already passed)
     })
   },
 
@@ -444,6 +479,31 @@ export const bookPortalComponent = {
     this.shadowPlane.position.set(this.groundCenter.x, minY, this.groundCenter.z)
     this.shadowPlane.scale.setScalar(this.worldScale * 30)
     this.shadowPlane.visible = !!this.sp.gravity
+  },
+
+  // Is local point (x, y) on the mask's plane inside the mask (opaque part of its image)?
+  insideMask(mask, x, y) {
+    if (!mask.alpha) return false
+    const u = x / mask.pw + 0.5
+    const v = 0.5 - y / mask.ph  // image rows run top to bottom
+    if (u < 0 || u >= 1 || v < 0 || v >= 1) return false
+    return mask.alpha[Math.floor(v * mask.ih) * mask.iw + Math.floor(u * mask.iw)] >= 128
+  },
+
+  // Share (0..1) of a disc of radius r around (x, y) on the mask's plane that lies inside the mask,
+  // sampled at the centre plus two rings of points.
+  maskCoverage(mask, x, y, r) {
+    let inside = 0
+    let total = 0
+    const rings = [[0, 1], [0.5, 6], [0.9, 12]]  // [radius fraction, points]
+    for (const [f, n] of rings) {
+      for (let k = 0; k < n; k++) {
+        const a = (k / n) * 2 * Math.PI
+        if (this.insideMask(mask, x + Math.cos(a) * f * r, y + Math.sin(a) * f * r)) inside++
+        total++
+      }
+    }
+    return inside / total
   },
 
   removeSphere(i) {
@@ -493,8 +553,25 @@ export const bookPortalComponent = {
     if (tracked) {
       for (const s of this.spheres) {
         if (s.phase !== 'portal') continue
-        s.mesh.position.addScaledVector(s.vel, dt)
-        if (s.mesh.position.z > s.r) this.crossThreshold(s)
+        const p = s.mesh.position
+        const prevZ = p.z
+        p.addScaledVector(s.vel, dt)
+        if (s.mask && !s.maskPassed && prevZ < s.mask.z && p.z >= s.mask.z) {
+          // The centre crosses the mask's plane: survive only if it passes through the mask.
+          const f = (s.mask.z - prevZ) / (p.z - prevZ)
+          const x = p.x - s.vel.x * dt * (1 - f)
+          const y = p.y - s.vel.y * dt * (1 - f)
+          const r = s.r * Math.min(1, s.age / 0.15)  // current size (spheres grow in at spawn)
+          const coverage = this.maskCoverage(s.mask, x, y, r)
+          if (coverage > 0 && coverage * 100 >= this.sp.passPercent) s.maskPassed = true
+          else s.perishAge = 0  // blocked by the frame: keeps flying, stays masked, fades out
+        }
+        if (s.mask && s.maskPassed && p.z - s.r >= s.mask.z) {
+          // Completely in front of the mask: draw it everywhere from now on.
+          s.mesh.material.stencilWrite = false
+          s.mask = null
+        }
+        if (p.z > s.r) this.crossThreshold(s)
       }
     }
 
@@ -514,14 +591,19 @@ export const bookPortalComponent = {
     for (let i = this.spheres.length - 1; i >= 0; i--) {
       const s = this.spheres[i]
       s.age += dt
-      if (s.age >= sp.lifetimeS) {
+      let perish = 1
+      if (s.perishAge != null) {
+        s.perishAge += dt
+        perish = sp.perishFadeS > 0 ? 1 - s.perishAge / sp.perishFadeS : 0
+      }
+      if (perish <= 0 || s.age >= sp.lifetimeS) {
         this.removeSphere(i)
         continue
       }
       const grow = Math.min(1, s.age / 0.15)  // pop in from nothing at the vanishing point
       s.mesh.scale.setScalar(s.r * Math.max(0.01, grow))
       const fadeLeft = sp.lifetimeS - s.age
-      s.mesh.material.opacity = s.opacity * (sp.fadeS > 0 ? Math.min(1, fadeLeft / sp.fadeS) : 1)
+      s.mesh.material.opacity = s.opacity * perish * (sp.fadeS > 0 ? Math.min(1, fadeLeft / sp.fadeS) : 1)
 
       if (s.phase === 'portal') {
         s.mesh.renderOrder = this.sphereRenderOrder(s.mesh.position.z)

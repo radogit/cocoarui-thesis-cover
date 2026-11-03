@@ -23,12 +23,15 @@
     "lifetimeS": 3.2,
     "fadeS": 0.7,
     "opacityPercent": [30, 60],
-    "spawnRangeCmX": 4,
-    "spawnRangeCmY": 4,
+    "spawnRangeCmX": 8,
+    "spawnRangeCmY": [-4, 7.4],
     "aim": "straight",
-    "spreadDegX": 10,
-    "spreadDegY": 15,
+    "spreadDegX": 0,
+    "spreadDegY": 0,
     "spawnDepthCm": 35,
-    "gravity": false
+    "gravity": false,
+    "mask": "lenses",
+    "passPercent": 25,
+    "perishFadeS": 0.25
   }
 }
