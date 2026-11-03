@@ -224,16 +224,24 @@ export const bookPortalComponent = {
     // 2) Tunnel: a box seen from inside (BackSide). Its front face points at the viewer and is culled,
     //    so the box looks open at the cover. With layers, it widens with depth (a frustum) to match
     //    the layers' scaling, so from the reference viewpoint its walls are seen edge-on.
-    //    Filled with one flat, unlit color (innerColor), shown exactly as specified.
+    //    Unlit vertical gradient: innerColor at the top, innerColorBottom at the bottom
+    //    (same color top and bottom if innerColorBottom is not set).
     const tunnelGeo = new THREE.BoxGeometry(w, h, d, 1, 1, 12)
     tunnelGeo.translate(0, 0, -d / 2)
     const pos = tunnelGeo.attributes.position
+    const topColor = new THREE.Color(cfg.innerColor || this.data.innerColor)
+    const bottomColor = new THREE.Color(cfg.innerColorBottom || cfg.innerColor || this.data.innerColor)
+    const colors = new Float32Array(pos.count * 3)
+    const c = new THREE.Color()
     for (let i = 0; i < pos.count; i++) {
+      const t = 0.5 - pos.getY(i) / h  // 0 at the top edge, 1 at the bottom edge
+      c.copy(topColor).lerp(bottomColor, t).toArray(colors, i * 3)
       const s = this.depthScale(pos.getZ(i))
       pos.setXY(i, pos.getX(i) * s, pos.getY(i) * s)
     }
+    tunnelGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3))
     this.portalRoot.add(new THREE.Mesh(tunnelGeo, new THREE.MeshBasicMaterial({
-      color: cfg.innerColor || this.data.innerColor, side: THREE.BackSide, toneMapped: false,
+      vertexColors: true, side: THREE.BackSide, toneMapped: false,
     })))
 
     // 3) Cover layers, back to front. Layer i gets renderOrder 2i+1; spheres get the even numbers

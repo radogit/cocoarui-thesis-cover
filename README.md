@@ -48,7 +48,8 @@ loads, so changes only need a page reload. New image files need a restart of `np
 
 | key | meaning |
 |---|---|
-| `innerColor` | flat colour of the inner space (tunnel walls and back) |
+| `innerColor` | colour of the inner space at the **top** (tunnel walls and back) |
+| `innerColorBottom` | colour at the **bottom**; the inner space is a top-to-bottom gradient between the two. Leave it out for a flat `innerColor` |
 | `viewingDistanceCm` | deeper layers are enlarged by `(viewing distance + depth) / viewing distance`, so that, seen straight on from this distance, the stack looks exactly like the printed cover |
 | `border` | frame drawn just **outside** the tracked cover edge: `thicknessCm` (0 = no border), `opacityPercent` (0–100), `color` (hex) |
 

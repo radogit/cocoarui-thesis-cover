@@ -1,5 +1,6 @@
 {
   "innerColor": "#363EdC",
+  "innerColorBottom": "#1B1F6E",
   "viewingDistanceCm": 35,
 
   "border": {"thicknessCm": 1, "opacityPercent": 100, "color": "#000000"},
