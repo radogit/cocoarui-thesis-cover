@@ -25,6 +25,20 @@ disable). The input file is never modified. The script writes into `src/targets/
 Restart `npm run serve` afterwards. **Don't copy a cover image over `book-cover.jpg` by hand.** It must be the
 480×640 crop that this script produces.
 
+## More image targets (e.g. the back cover)
+
+Each target is its own portal with its own config:
+
+1. `npm run make-target -- path/to/image.jpg --name my-target` (writes `src/targets/my-target.json`)
+2. Import that `.json` in `src/targets/index.js` and add it to `imageTargets`.
+3. In `src/index.html`, add
+   `<xrextras-named-image-target name="my-target" book-portal="coverHeightMeters: 0.24; layers: assets/my-target/layers.json">`
+4. Create `src/assets/my-target/layers.json` (same format as below).
+
+The back cover (`book-cover-back`) is set up this way: `src/assets/back/` has its own copies of the layers (the title layers mirrored) and its own `layers.json`, so front and back are tuned independently. Targets must look
+clearly different to the tracker; the back cover is low in contrast and shares the glasses with the front, so
+it may be found less reliably.
+
 ## Inner world and spheres: `src/assets/layers/layers.json`
 
 Everything about the inner world and the spheres is set in this one file. It is loaded when the page
@@ -108,6 +122,10 @@ then fade and disappear.
 | `opacityPercent` | [30, 60] | random opacity per sphere, between these values |
 | `spawnRangeCmX` | 0 | where spheres start, left/right of the centre: `4` = random within ±4 cm, or `[min, max]` (e.g. `[-2, 6]`) |
 | `spawnRangeCmY` | 0 | same, up/down |
+| `direction` | `out` | `out` = spheres fly from the vanishing point out of the cover. `in` = they start at a point straight out in front of the cover (`startDistanceCm`), fly into the cover, entering at a random point within `spawnRangeCmX`/`Y` and fading out at `spawnDepthCm`. With `in`, `aim`, `spreadDeg*`, `gravity` and `lifetimeS` are not used; with a `mask`, spheres that reach the mask's plane with at least `passPercent` inside it fly on (then visible only through the mask), the others stop there and fade out (each sphere lives until it reaches the depth) |
+| `startDistanceCm` | 50 | `in` only: spheres start this far in front of the cover, on the line straight out from its centre |
+| `startRangeCmX` | 0 | `in` only: random offset of the start point left/right: `n` = within ±n cm, or `[min, max]`. 0 = all from one point |
+| `startRangeCmY` | 0 | `in` only: same, up/down |
 | `mask` | null | name of a mask from `"masks"`. Behind the mask's plane, spheres show only inside the mask. When a sphere reaches that plane, the share of it inside the mask decides: enough (`passPercent`) and it flies on, fully visible once in front of the plane; otherwise it stays masked and fades out |
 | `passPercent` | 50 | with `mask`: how much of a sphere (0–100) must be inside the mask to pass. Lower = more permissive |
 | `perishFadeS` | 0.25 | with `mask`: fade-out time, in seconds, for spheres that don't pass |

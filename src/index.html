@@ -50,6 +50,11 @@
          Tune the physics here, e.g. book-portal="coverHeightMeters: 0.21; restitution: 0.35" -->
     <xrextras-named-image-target name="book-cover" book-portal="coverHeightMeters: 0.24">
     </xrextras-named-image-target>
+
+    <!-- Back cover: its own portal, configured in assets/back/layers.json. -->
+    <xrextras-named-image-target name="book-cover-back"
+      book-portal="coverHeightMeters: 0.24; layers: assets/back/layers.json">
+    </xrextras-named-image-target>
   </a-scene>
 </body>
 

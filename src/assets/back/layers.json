@@ -1,0 +1,36 @@
+{
+  "innerColor": "#262EaC",
+  "innerColorBottom": "#0B0F0E",
+  "viewingDistanceCm": 35,
+
+  "border": {"thicknessCm": 1, "opacityPercent": 100, "color": "#111"},
+
+  "masks": {
+    "lenses": {"file": "1-lens-mask.png", "depthCm": 0}
+  },
+
+  "layers": [
+    {"file": "1.png",         "depthCm": 0, "opacityPercent": 70, "blend": "multiply"},
+    {"file": "2.png",         "depthCm": 5, "opacityPercent": 20, "blend": "normal", "mask": "lenses", "show": "inside"},
+    {"file": "2-blurred.png", "depthCm": 5, "opacityPercent": 15, "blend": "normal", "mask": "lenses", "show": "outside"}
+  ],
+
+  "spheres": {
+    "direction": "in",
+    "spawnRate": 10,
+    "maxSpheres": 140,
+    "radiusCm": [0.5, 1.5],
+    "speedCmPerS": 40,
+    "fadeS": 0.7,
+    "opacityPercent": [30, 60],
+    "startDistanceCm": 50,
+    "startRangeCmX": 1,
+    "startRangeCmY": 1,
+    "spawnRangeCmX": 8,
+    "spawnRangeCmY": [-4, 7.4],
+    "spawnDepthCm": 55,
+    "mask": "lenses",
+    "passPercent": 25,
+    "perishFadeS": 0.25
+  }
+}

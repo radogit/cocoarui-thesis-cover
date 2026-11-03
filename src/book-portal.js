@@ -16,7 +16,7 @@
 // Distances are in centimeters/meters and converted to scene units using the real cover height
 // (coverHeightMeters), so the motion looks right at the book's scale.
 
-import bookCover from './targets/book-cover.json'
+import {imageTargets} from './targets'
 
 const G = 9.81
 const DEG = Math.PI / 180
@@ -38,7 +38,15 @@ const SPHERE_DEFAULTS = {
   spreadDegY: 3,             // max random deviation up/down
   spawnDepthCm: null,        // vanishing point depth behind the cover; null = 1 cm in front of the deepest layer
   gravity: false,            // true = fall, bounce and roll once out of the portal
+  direction: 'out',          // 'out' = from the vanishing point out of the cover;
+                             // 'in'  = from a point straight out in front of the cover, into the cover (aim,
+                             //         spread and gravity are not used; spawnRangeCmX/Y = entry area on the cover)
+  startDistanceCm: 50,       // 'in': distance of the start point in front of the cover, on its centre line
+  startRangeCmX: 0,          // 'in': random offset of the start point left/right (n = within ±n cm, or [min, max])
+  startRangeCmY: 0,          // 'in': same, up/down
   mask: null,                // name of a mask from "masks": behind the mask's plane spheres show only inside it;
+                             // 'in': at the plane, spheres inside the mask fly on into the cover, the others
+                             // stop there and fade out
   passPercent: 50,           // with mask: share of the sphere that must be inside the mask to fly on
   perishFadeS: 0.25,         // with mask: how fast spheres that don't pass fade out (they stay masked meanwhile)
                              // at the plane, spheres outside the mask perish and those inside fly on, unmasked
@@ -50,6 +58,10 @@ const BLEND_MODES = {
   multiply: {src: 'ZeroFactor', dst: 'SrcColorFactor', glsl: 'gl_FragColor.rgb = mix(vec3(1.0), gl_FragColor.rgb, gl_FragColor.a);'},
   screen: {src: 'OneFactor', dst: 'OneMinusSrcColorFactor', glsl: 'gl_FragColor.rgb *= gl_FragColor.a;'},
 }
+
+// Stencil bits are shared by all portals in the page (8 in total), so masks of two covers that are
+// in view at the same time don't interfere.
+let nextStencilBit = 0
 
 // A config value that is either a number or a [min, max] range: returns a random value in it.
 const randomIn = (v, symmetric = false) => {
@@ -90,7 +102,11 @@ export const bookPortalComponent = {
 
     // Cover size in target-local units. 8th Wall sets 1 unit = tracked crop height; make-target.py
     // stores the full cover size (it can be taller or wider than the crop) in metadata.
-    const meta = bookCover.metadata || {}
+    // The target is the one named on this entity (<xrextras-named-image-target name="...">).
+    const targetName = this.el.getAttribute('name')
+    const target = imageTargets.find(t => t.name === targetName)
+    if (!target) console.warn(`[book-portal] no image target named "${targetName}" in src/targets/index.js`)
+    const meta = (target && target.metadata) || {}
     this.coverW = meta.coverWidth || 0.75
     this.coverH = meta.coverHeight || 1
 
@@ -270,10 +286,10 @@ export const bookPortalComponent = {
     //     looking through real glasses.
     const maskBits = {}
     this.masks = {}  // name -> {bit, z, pw, ph, alpha, iw, ih}; alpha is filled in once the image loads
-    Object.entries(cfg.masks || {}).forEach(([name, m], k) => {
+    Object.entries(cfg.masks || {}).forEach(([name, m]) => {
       if (!m || !m.file) return
-      if (k > 7) { console.warn(`[book-portal] at most 8 masks; ignoring "${name}"`); return }
-      const bit = 1 << k
+      if (nextStencilBit > 7) { console.warn(`[book-portal] at most 8 masks in total; ignoring "${name}"`); return }
+      const bit = 1 << nextStencilBit++
       maskBits[name] = bit
       const z = -cm(m.depthCm || 0)
       const s = this.depthScale(z)
@@ -388,10 +404,39 @@ export const bookPortalComponent = {
     })
   },
 
+  // 'in' direction: start at a point startDistanceCm straight out in front of the cover's centre (plus
+  // a random offset within startRangeCmX/Y), fly to a random entry point within spawnRangeCmX/Y on the
+  // cover and continue on the same line to spawnDepthCm behind it. Independent of where the phone is.
+  // Returns {start, vel, life} in local units.
+  incomingPath() {
+    const THREE = this.THREE
+    const {sp} = this
+    const lpm = this.localPerMeter()
+    const cmLocal = lpm / 100
+    const start = new THREE.Vector3(
+      randomIn(sp.startRangeCmX, true) * cmLocal,
+      randomIn(sp.startRangeCmY, true) * cmLocal,
+      Math.max(1, sp.startDistanceCm) * cmLocal)
+    const entry = new THREE.Vector3(
+      randomIn(sp.spawnRangeCmX, true) * cmLocal,
+      randomIn(sp.spawnRangeCmY, true) * cmLocal,
+      0)
+    const dir = new THREE.Vector3().subVectors(entry, start).normalize()
+    const dist = start.distanceTo(entry) + this.spawnDepth / -dir.z  // to the cover, then to spawn depth
+    const speed = (sp.speedCmPerS / 100) * lpm * (0.85 + Math.random() * 0.3)
+    return {start, vel: dir.multiplyScalar(speed), life: dist / speed}
+  },
+
   spawnSphere() {
     const THREE = this.THREE
     const {sp} = this
     const lpm = this.localPerMeter()
+
+    if (sp.direction === 'in') {
+      const path = this.incomingPath()
+      this.addSphere(path.start, path.vel, 'incoming', path.life)
+      return
+    }
 
     // Vanishing point: centre of the cover, spawnDepth behind it, plus a random offset within
     // spawnRangeCmX / spawnRangeCmY.
@@ -413,7 +458,14 @@ export const bookPortalComponent = {
     dir.applyAxisAngle(this.axisY, (Math.random() * 2 - 1) * sp.spreadDegX * DEG)
     dir.applyAxisAngle(this.axisX, (Math.random() * 2 - 1) * sp.spreadDegY * DEG)
     const vel = dir.multiplyScalar((sp.speedCmPerS / 100) * lpm * (0.85 + Math.random() * 0.3))
+    this.addSphere(start, vel, 'portal', sp.lifetimeS)
+  },
 
+  // Create a sphere at local position start with local velocity vel.
+  addSphere(start, vel, phase, life) {
+    const THREE = this.THREE
+    const {sp} = this
+    const cmLocal = this.localPerMeter() / 100
     const opacity = randomIn(sp.opacityPercent) / 100
 
     const hue = (0.72 + Math.random() * 0.4) % 1  // violets, magentas, cyans
@@ -430,6 +482,8 @@ export const bookPortalComponent = {
       if (!mask) {
         if (!this.warnedSphereMask) console.warn(`[book-portal] spheres use mask "${sp.mask}", which is not defined in "masks"`)
         this.warnedSphereMask = true
+      } else if (phase === 'incoming') {
+        // Starts in front of the mask; it is masked only after passing through (see tick).
       } else if (start.z >= mask.z) {
         mask = null  // starts in front of the mask: nothing to pass through
       } else {
@@ -448,7 +502,7 @@ export const bookPortalComponent = {
 
     this.spheres.push({
       mesh, vel, r, opacity,       // portal phase: r and vel in local units
-      phase: 'portal', age: 0,
+      phase, age: 0, life,
       mask,                        // mask still to pass (null = none / already passed)
     })
   },
@@ -552,6 +606,33 @@ export const bookPortalComponent = {
     // since its pose is then unknown.
     if (tracked) {
       for (const s of this.spheres) {
+        if (s.phase === 'incoming') {  // stays in local space all the way into the cover
+          const p = s.mesh.position
+          const prevZ = p.z
+          p.addScaledVector(s.vel, dt)
+          if (s.mask && !s.maskPassed && s.perishAge == null && prevZ > s.mask.z && p.z <= s.mask.z) {
+            // The centre reaches the mask's plane: in through the mask, or stop here and fade.
+            const f = (prevZ - s.mask.z) / (prevZ - p.z)
+            const x = p.x - s.vel.x * dt * (1 - f)
+            const y = p.y - s.vel.y * dt * (1 - f)
+            const coverage = this.maskCoverage(s.mask, x, y, s.r)
+            if (coverage > 0 && coverage * 100 >= this.sp.passPercent) {
+              s.maskPassed = true
+            } else {
+              p.set(x, y, s.mask.z)  // stopped by the frame
+              s.vel.set(0, 0, 0)
+              s.perishAge = 0
+            }
+          }
+          if (s.maskPassed && !s.mesh.material.stencilWrite && p.z + s.r <= s.mask.z) {
+            // Completely behind the mask: from now on visible only through it.
+            Object.assign(s.mesh.material, {
+              stencilWrite: true, stencilRef: s.mask.bit, stencilFuncMask: s.mask.bit, stencilWriteMask: 0,
+              stencilFunc: this.THREE.EqualStencilFunc,
+            })
+          }
+          continue
+        }
         if (s.phase !== 'portal') continue
         const p = s.mesh.position
         const prevZ = p.z
@@ -596,16 +677,16 @@ export const bookPortalComponent = {
         s.perishAge += dt
         perish = sp.perishFadeS > 0 ? 1 - s.perishAge / sp.perishFadeS : 0
       }
-      if (perish <= 0 || s.age >= sp.lifetimeS) {
+      if (perish <= 0 || s.age >= s.life) {
         this.removeSphere(i)
         continue
       }
       const grow = Math.min(1, s.age / 0.15)  // pop in from nothing at the vanishing point
       s.mesh.scale.setScalar(s.r * Math.max(0.01, grow))
-      const fadeLeft = sp.lifetimeS - s.age
+      const fadeLeft = s.life - s.age
       s.mesh.material.opacity = s.opacity * perish * (sp.fadeS > 0 ? Math.min(1, fadeLeft / sp.fadeS) : 1)
 
-      if (s.phase === 'portal') {
+      if (s.phase !== 'world') {
         s.mesh.renderOrder = this.sphereRenderOrder(s.mesh.position.z)
       } else {
         this.tmp.copy(s.mesh.position)

@@ -1,0 +1,18 @@
+{
+  "imagePath": "targets/book-cover-back.jpg",
+  "metadata": {
+    "coverWidth": 0.75,
+    "coverHeight": 1.0951
+  },
+  "name": "book-cover-back",
+  "type": "PLANAR",
+  "properties": {
+    "left": 0,
+    "top": 30,
+    "width": 480,
+    "height": 640,
+    "originalWidth": 480,
+    "originalHeight": 701,
+    "isRotated": false
+  }
+}
