@@ -88,7 +88,7 @@ const ANAGLYPH_GLSL = `
   gl_Position = projectionMatrix * mvPosition;
 }`
 
-// Anaglyph on/off for the whole page, switched live by the 3D button (see app.js). Covers whose config
+// Anaglyph on/off for the whole page, switched live by the stereoscopic button (see app.js). Covers whose config
 // has "anaglyph": {"enabled": true} are prepared for it; this decides whether it is shown.
 export const anaglyphState = {on: false}
 
@@ -530,7 +530,7 @@ export const bookPortalComponent = {
     const p = this.anaPoint.set(0, 0, this.ana.baseZ).applyMatrix4(view)
     const n = this.anaUniforms.uAnaN.value.set(0, 0, 1).applyMatrix3(this.anaNormal.getNormalMatrix(view)).normalize()
     this.anaUniforms.uAnaD.value = n.dot(p)
-    // With 3D off, no shift: the left-eye copy is then drawn as the normal, full-color object.
+    // With stereoscopic off, no shift: the left-eye copy is then drawn as the normal, full-color object.
     this.anaUniforms.uAnaHalf.value = anaglyphState.on
       ? this.ana.halfSepCm * (this.localPerMeter() / 100) * this.worldScale : 0
     for (const m of this.anaRightMats) m.visible = anaglyphState.on

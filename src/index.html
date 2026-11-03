@@ -24,8 +24,8 @@
   <div class="over">
     <span id="promptText">Point your camera at the book cover</span>
   </div>
-  <!-- Anaglyph 3D on/off (shown when a cover's layers.json has "anaglyph": {"enabled": true}). -->
-  <button id="anaglyphToggle" type="button" aria-pressed="false" hidden>3D off</button>
+  <!-- Stereoscopic (anaglyph) on/off (shown when a cover's layers.json has "anaglyph": {"enabled": true}). -->
+  <button id="anaglyphToggle" type="button" aria-pressed="false" hidden><span class="stereo">stereo</span><span class="scopic">scopic off</span></button>
 
   <!-- World tracking is ON (no disableWorldTracking), so +Y is "up" and gravity is known,
        and the image target is tracked in the same gravity-aligned world space. -->

@@ -123,7 +123,7 @@ out, things behind it sink in. Layers that are not split (and the inner colour) 
 
 | key | meaning |
 |---|---|
-| `enabled` | `true` = this cover takes part in 3D; `false` = never split. While the app runs, the **3D button** (bottom right) switches 3D on and off for all taking part. It starts off and remembers the last choice on that phone |
+| `enabled` | `true` = this cover takes part in 3D; `false` = never split. While the app runs, the **stereoscopic button** (bottom right) switches it on and off for all taking part. It starts off and remembers the last choice on that phone |
 | `glasses` | `red-cyan` (right eye = green + blue) or `red-blue` (right eye = blue only) |
 | `eyeSeparationCm` | strength of the effect: bigger = more depth (and more red/cyan split). Real eyes are ~6.3 cm |
 | `baseline` | a layer file name (that layer's depth has no split), or a depth in cm |

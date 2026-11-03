@@ -10,7 +10,7 @@ const onxrloaded = () => {
 }
 window.XR8 ? onxrloaded() : window.addEventListener('xrloaded', onxrloaded)
 
-// 3D (anaglyph) button: switches red/cyan rendering on and off for every cover that supports it.
+// Stereoscopic (anaglyph) button: switches red/cyan rendering on and off for every cover that supports it.
 // The choice is remembered on this device.
 const ANAGLYPH_KEY = 'book-portal-anaglyph'
 const anaglyphButton = document.getElementById('anaglyphToggle')
@@ -18,7 +18,7 @@ try {
   anaglyphState.on = localStorage.getItem(ANAGLYPH_KEY) === '1'
 } catch (e) { /* storage unavailable: start off */ }
 const showAnaglyphState = () => {
-  anaglyphButton.textContent = anaglyphState.on ? '3D on' : '3D off'
+  anaglyphButton.querySelector('.scopic').textContent = anaglyphState.on ? 'scopic on' : 'scopic off'
   anaglyphButton.setAttribute('aria-pressed', String(anaglyphState.on))
 }
 if (anaglyphButton) {
