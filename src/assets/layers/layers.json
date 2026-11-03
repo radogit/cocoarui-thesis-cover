@@ -1,0 +1,26 @@
+{
+  "innerColor": "#363EdC",
+  "viewingDistanceCm": 35,
+
+  "border": {"thicknessCm": 1, "opacityPercent": 100, "color": "#000000"},
+
+  "layers": [
+    {"file": "1.png", "depthCm": 0, "opacityPercent": 100, "blend": "multiply"},
+    {"file": "2.png", "depthCm": 5, "opacityPercent": 100, "blend": "normal"}
+  ],
+
+  "spheres": {
+    "spawnRate": 3,
+    "maxSpheres": 40,
+    "radiusCm": 1.5,
+    "speedCmPerS": 40,
+    "lifetimeS": 3.2,
+    "fadeS": 0.7,
+    "opacityPercent": [30, 60],
+    "aim": "straight",
+    "spreadDegX": 10,
+    "spreadDegY": 15,
+    "spawnDepthCm": 35,
+    "gravity": false
+  }
+}

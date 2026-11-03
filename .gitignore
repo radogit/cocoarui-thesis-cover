@@ -1,0 +1,7 @@
+node_modules
+dist
+tmp
+.DS_Store
+localhost.pem
+localhost-key.pem
+.claude/

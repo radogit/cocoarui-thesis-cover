@@ -1,0 +1,18 @@
+{
+  "format": 1,
+  "last_updated": "2020-01-01T00:00:00Z",
+  "devices": [
+    {
+      "type": "ios",
+      "rules": [{ "ua": "iPhone" }, { "ua": "iPad" }],
+      "dpi": [326, 326],
+      "bw": 0
+    },
+    {
+      "type": "android",
+      "rules": [{ "ua": "Android" }],
+      "dpi": [420, 420],
+      "bw": 0
+    }
+  ]
+}

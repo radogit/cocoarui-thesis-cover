@@ -1,0 +1,56 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+
+  <title>8thWall-test3 · Book portal</title>
+  <script crossorigin="anonymous" src="/external/scripts/8frame-1.5.0.min.js"></script>
+  <script crossorigin="anonymous" src="/external/xrextras/xrextras.js"></script>
+  <script crossorigin="anonymous" src="/external/landing-page/landing-page.js"></script>
+  <script crossorigin="anonymous" src="/external/xr/xr.js" async="true" data-preload-chunks="slam"></script>
+
+  <!-- Registers book-portal and the image target before the scene initializes. -->
+  <script defer src="/bundle.js"></script>
+
+  <meta name="8thwall:renderer" content="aframe:1.5.0" />
+  <meta name="8thwall:package" content="@8thwall.xrextras" />
+  <meta name="8thwall:package" content="@8thwall.landing-page" />
+</head>
+
+<body>
+  <div class="over">
+    <span id="promptText">Point your camera at the book cover</span>
+  </div>
+
+  <!-- World tracking is ON (no disableWorldTracking), so +Y is "up" and gravity is known,
+       and the image target is tracked in the same gravity-aligned world space. -->
+  <a-scene
+    landing-page
+    xrextras-loading
+    xrextras-runtime-error
+    renderer="colorManagement: true"
+    xrweb>
+
+    <a-camera id="camera" position="0 8 8"></a-camera>
+
+    <a-entity
+      light="type: directional; intensity: 0.9; castShadow: true;
+             shadowMapWidth: 2048; shadowMapHeight: 2048;
+             shadowCameraTop: 10; shadowCameraBottom: -10; shadowCameraLeft: -10; shadowCameraRight: 10;
+             target: #camera"
+      xrextras-attach="target: camera; offset: 3 10 2"
+      position="1 4.3 2.5">
+    </a-entity>
+    <a-light type="ambient" intensity="0.6"></a-light>
+
+    <!-- name must match the image target's "name" in src/targets/book-cover.json.
+         Tune the physics here, e.g. book-portal="coverHeightMeters: 0.21; restitution: 0.35" -->
+    <xrextras-named-image-target name="book-cover" book-portal="coverHeightMeters: 0.24">
+    </xrextras-named-image-target>
+  </a-scene>
+</body>
+
+</html>
