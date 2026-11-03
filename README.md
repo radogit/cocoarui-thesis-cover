@@ -103,6 +103,33 @@ overrides any sphere setting; everything it doesn't set comes from the surroundi
 
 The lens centres on the cover are about (−5.5, 2) and (6.1, 2) cm.
 
+### Anaglyph 3D (`"anaglyph": {...}`)
+
+For red/cyan (or red/blue) 3D glasses. Spheres and chosen layers are drawn twice: a left-eye copy in the red
+channel only and a right-eye copy in cyan (or blue) only, shifted sideways by the stereo disparity for how far
+each point is from the phone. Everything at the `baseline` depth stays unsplit; things in front of it float
+out, things behind it sink in. Layers that are not split (and the inner colour) appear at the baseline.
+
+```json
+"anaglyph": {
+  "enabled": true,
+  "glasses": "red-cyan",
+  "eyeSeparationCm": 3,
+  "baseline": "2.png",
+  "layers": ["1.png"],
+  "spheres": true
+}
+```
+
+| key | meaning |
+|---|---|
+| `enabled` | `true` = this cover takes part in 3D; `false` = never split. While the app runs, the **3D button** (bottom right) switches 3D on and off for all taking part. It starts off and remembers the last choice on that phone |
+| `glasses` | `red-cyan` (right eye = green + blue) or `red-blue` (right eye = blue only) |
+| `eyeSeparationCm` | strength of the effect: bigger = more depth (and more red/cyan split). Real eyes are ~6.3 cm |
+| `baseline` | a layer file name (that layer's depth has no split), or a depth in cm |
+| `layers` | layer files to split. A layer's depth relative to the baseline sets how far it lifts: `1.png` at 0 cm with `2.png` at 5 cm floats 5 cm above the title |
+| `spheres` | `true` = split the spheres too |
+
 ### Masks (`"masks": {...}`)
 
 A mask is an invisible shape that decides where masked layers can be seen. The example uses the

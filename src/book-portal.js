@@ -71,6 +71,52 @@ const BLEND_MODES = {
 // in view at the same time don't interfere.
 let nextStencilBit = 0
 
+// Anaglyph 3D (layers.json "anaglyph"). Split objects are drawn twice: a left-eye copy that writes only
+// the red channel and a right-eye copy that writes only cyan (or blue). Each vertex is shifted sideways
+// (view-space x) by the stereo disparity for its distance from the phone, relative to a baseline plane:
+// for a point at distance d whose line of sight meets the baseline at distance c, the left-eye copy moves
+// by +e/2 * (1 - d/c) and the right-eye copy by the opposite. On the baseline the copies coincide; in
+// front of it they cross (seen floating out), behind it they part the other way (seen deeper).
+const ANAGLYPH_UNIFORMS_GLSL = 'uniform vec3 uAnaN;\nuniform float uAnaD;\nuniform float uAnaHalf;\nuniform float uAnaSign;\n'
+const ANAGLYPH_GLSL = `
+{
+  float anaDen = dot(uAnaN, mvPosition.xyz);  // baseline plane (view space): dot(uAnaN, x) = uAnaD
+  if (abs(anaDen) > 1e-6) {
+    float anaS = uAnaD / anaDen;  // the line of sight meets the baseline at anaS * this vertex (c/d)
+    if (anaS > 0.0) mvPosition.x += uAnaSign * uAnaHalf * (1.0 - 1.0 / anaS);
+  }
+  gl_Position = projectionMatrix * mvPosition;
+}`
+
+// Anaglyph on/off for the whole page, switched live by the 3D button (see app.js). Covers whose config
+// has "anaglyph": {"enabled": true} are prepared for it; this decides whether it is shown.
+export const anaglyphState = {on: false}
+
+// Add the anaglyph shift to a material (keeping any shader changes it already has).
+const addAnaglyphShader = (mat, sign, sharedUniforms) => {
+  const prevCompile = mat.onBeforeCompile
+  const prevKey = mat.customProgramCacheKey
+  const signUniform = {value: sign}
+  mat.onBeforeCompile = (shader, renderer) => {
+    prevCompile.call(mat, shader, renderer)
+    Object.assign(shader.uniforms, sharedUniforms, {uAnaSign: signUniform})
+    shader.vertexShader = ANAGLYPH_UNIFORMS_GLSL +
+      shader.vertexShader.replace('#include <project_vertex>', `#include <project_vertex>\n${ANAGLYPH_GLSL}`)
+  }
+  mat.customProgramCacheKey = () => `${prevKey.call(mat)}|anaglyph`
+}
+
+// Let a mesh write only some color channels. three.js only has an all-or-nothing colorWrite, so set the
+// WebGL mask around the draw (after syncing three's cached state, so it doesn't override ours).
+const setColorChannels = (mesh, [r, g, b]) => {
+  mesh.onBeforeRender = (renderer) => {
+    if (!anaglyphState.on) return  // normal full-color drawing
+    renderer.state.buffers.color.setMask(true)
+    renderer.getContext().colorMask(r, g, b, true)
+  }
+  mesh.onAfterRender = (renderer) => renderer.getContext().colorMask(true, true, true, true)
+}
+
 // A config value that is either a number or a [min, max] range: returns a random value in it.
 const randomIn = (v, symmetric = false) => {
   if (Array.isArray(v)) return v[0] + Math.random() * (v[1] - v[0])
@@ -188,6 +234,33 @@ export const bookPortalComponent = {
       .map(l => ({...l, z: -cm(l.depthCm || 0)}))
       .sort((a, b) => a.z - b.z)  // deepest first
     this.layerZs = layers.map(l => l.z)
+
+    // Anaglyph settings ("anaglyph": {"enabled": true, ...}).
+    const ana = cfg.anaglyph || {}
+    this.ana = null
+    if (ana.enabled) {
+      let baseZ = 0
+      if (typeof ana.baseline === 'number') {
+        baseZ = -cm(ana.baseline)  // a depth in cm
+      } else if (ana.baseline) {
+        const baseLayer = layers.find(l => l.file === ana.baseline)
+        if (baseLayer) baseZ = baseLayer.z
+        else console.warn(`[book-portal] anaglyph baseline "${ana.baseline}" is not a layer; using the cover surface`)
+      }
+      this.ana = {
+        baseZ,
+        halfSepCm: (ana.eyeSeparationCm != null ? ana.eyeSeparationCm : 1) / 2,
+        layers: new Set(ana.layers || []),
+        spheres: ana.spheres !== false,
+        rightChannels: ana.glasses === 'red-blue' ? [false, false, true] : [false, true, true],
+      }
+      this.anaUniforms = {
+        uAnaN: {value: new THREE.Vector3(0, 0, 1)}, uAnaD: {value: 0}, uAnaHalf: {value: 0},
+      }
+      this.anaRightMats = new Set()
+      const button = document.getElementById('anaglyphToggle')
+      if (button) button.hidden = false  // at least one cover can show 3D
+    }
 
     if (layers.length) {
       this.viewDist = cm(cfg.viewingDistanceCm != null ? cfg.viewingDistanceCm : 35)
@@ -398,6 +471,7 @@ export const bookPortalComponent = {
       mesh.renderOrder = 2 * i + 1
       mesh.visible = false   // until the texture has loaded
       this.portalRoot.add(mesh)
+      const mats = this.ana && this.ana.layers.has(layer.file) ? this.anaglyphSplit(mesh) : [mat]
 
       const fileUrl = new URL(layer.file, base).href
       loader.load(fileUrl, (tex) => {
@@ -413,11 +487,59 @@ export const bookPortalComponent = {
           console.warn(`[book-portal] layer ${layer.file} is ${iw}x${ih}. Layers over 2048 px use a lot of ` +
             'GPU memory on phones; consider exporting at most 2048 px tall.')
         }
-        mat.map = tex
-        mat.needsUpdate = true
+        for (const m of mats) {
+          m.map = tex
+          m.needsUpdate = true
+        }
         mesh.visible = true
       }, undefined, () => console.error(`[book-portal] could not load layer image ${fileUrl}`))
     })
+  },
+
+  // Anaglyph: turn mesh into the left-eye (red) copy and add a right-eye (cyan/blue) twin as its child,
+  // so it follows every move. Returns both materials, to keep them in sync.
+  anaglyphSplit(mesh) {
+    const left = mesh.material
+    const right = left.clone()
+    right.onBeforeCompile = left.onBeforeCompile  // clone() does not copy these
+    right.customProgramCacheKey = left.customProgramCacheKey
+    addAnaglyphShader(left, 1, this.anaUniforms)
+    addAnaglyphShader(right, -1, this.anaUniforms)
+    right.visible = anaglyphState.on  // the right-eye copy is drawn only while 3D is on
+    this.anaRightMats.add(right)
+    const twin = new this.THREE.Mesh(mesh.geometry, right)
+    twin.renderOrder = mesh.renderOrder
+    mesh.add(twin)
+    setColorChannels(mesh, [true, false, false])
+    setColorChannels(twin, this.ana.rightChannels)
+    return [left, right]
+  },
+
+  // Anaglyph: the baseline plane in view space, and half the eye separation in view units.
+  updateAnaglyph() {
+    const THREE = this.THREE
+    const cam = this.el.sceneEl.camera
+    if (!cam) return
+    cam.updateMatrixWorld()
+    if (!this.anaView) {
+      this.anaView = new THREE.Matrix4()
+      this.anaNormal = new THREE.Matrix3()
+      this.anaPoint = new THREE.Vector3()
+    }
+    const view = this.anaView.copy(cam.matrixWorld).invert().multiply(this.portalRoot.matrixWorld)
+    const p = this.anaPoint.set(0, 0, this.ana.baseZ).applyMatrix4(view)
+    const n = this.anaUniforms.uAnaN.value.set(0, 0, 1).applyMatrix3(this.anaNormal.getNormalMatrix(view)).normalize()
+    this.anaUniforms.uAnaD.value = n.dot(p)
+    // With 3D off, no shift: the left-eye copy is then drawn as the normal, full-color object.
+    this.anaUniforms.uAnaHalf.value = anaglyphState.on
+      ? this.ana.halfSepCm * (this.localPerMeter() / 100) * this.worldScale : 0
+    for (const m of this.anaRightMats) m.visible = anaglyphState.on
+  },
+
+  // Sphere draw order, for both anaglyph copies.
+  setSphereOrder(s, order) {
+    s.mesh.renderOrder = order
+    for (const c of s.mesh.children) c.renderOrder = order
   },
 
   // 'in' direction: start at a point startDistanceCm straight out in front of the cover's centre (plus
@@ -518,9 +640,10 @@ export const bookPortalComponent = {
     mesh.position.copy(start)
     mesh.castShadow = !!sp.gravity
     this.portalRoot.add(mesh)
+    const mats = this.ana && this.ana.spheres ? this.anaglyphSplit(mesh) : [mat]
 
     this.spheres.push({
-      mesh, vel, r, opacity,       // portal phase: r and vel in local units
+      mesh, mats, vel, r, opacity, // portal phase: r and vel in local units
       phase, age: 0, life,
       sp,                          // the stream's settings
       mask,                        // mask still to pass (null = none / already passed)
@@ -583,7 +706,10 @@ export const bookPortalComponent = {
   removeSphere(i) {
     const s = this.spheres[i]
     s.mesh.parent.remove(s.mesh)
-    s.mesh.material.dispose()
+    for (const m of s.mats) {
+      m.dispose()
+      if (this.anaRightMats) this.anaRightMats.delete(m)
+    }
     this.spheres.splice(i, 1)
   },
 
@@ -612,6 +738,7 @@ export const bookPortalComponent = {
       obj.getWorldQuaternion(this.worldQuat)
       obj.getWorldScale(this.worldScaleVec)
       this.worldScale = this.worldScaleVec.y
+      if (this.ana) this.updateAnaglyph()
       this.updateGround()
 
       for (const st of this.streams) {
@@ -648,10 +775,12 @@ export const bookPortalComponent = {
           }
           if (s.maskPassed && !s.mesh.material.stencilWrite && p.z + s.r <= s.mask.z) {
             // Completely behind the mask: from now on visible only through it.
-            Object.assign(s.mesh.material, {
-              stencilWrite: true, stencilRef: s.mask.bit, stencilFuncMask: s.mask.bit, stencilWriteMask: 0,
-              stencilFunc: this.THREE.EqualStencilFunc,
-            })
+            for (const m of s.mats) {
+              Object.assign(m, {
+                stencilWrite: true, stencilRef: s.mask.bit, stencilFuncMask: s.mask.bit, stencilWriteMask: 0,
+                stencilFunc: this.THREE.EqualStencilFunc,
+              })
+            }
           }
           continue
         }
@@ -671,7 +800,7 @@ export const bookPortalComponent = {
         }
         if (s.mask && s.maskPassed && p.z - s.r >= s.mask.z) {
           // Completely in front of the mask: draw it everywhere from now on.
-          s.mesh.material.stencilWrite = false
+          for (const m of s.mats) m.stencilWrite = false
           s.mask = null
         }
         if (p.z > s.r) this.crossThreshold(s)
@@ -706,14 +835,15 @@ export const bookPortalComponent = {
       const grow = Math.min(1, s.age / 0.15)  // pop in from nothing at the vanishing point
       s.mesh.scale.setScalar(s.r * Math.max(0.01, grow))
       const fadeLeft = s.life - s.age
-      s.mesh.material.opacity = s.opacity * perish * (s.sp.fadeS > 0 ? Math.min(1, fadeLeft / s.sp.fadeS) : 1)
+      const op = s.opacity * perish * (s.sp.fadeS > 0 ? Math.min(1, fadeLeft / s.sp.fadeS) : 1)
+      for (const m of s.mats) m.opacity = op
 
       if (s.phase !== 'world') {
-        s.mesh.renderOrder = this.sphereRenderOrder(s.mesh.position.z)
+        this.setSphereOrder(s, this.sphereRenderOrder(s.mesh.position.z))
       } else {
         this.tmp.copy(s.mesh.position)
         this.portalRoot.worldToLocal(this.tmp)
-        s.mesh.renderOrder = this.sphereRenderOrder(this.tmp.z)
+        this.setSphereOrder(s, this.sphereRenderOrder(this.tmp.z))
       }
     }
   },

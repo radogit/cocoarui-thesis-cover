@@ -9,6 +9,15 @@
     "lenses": {"file": "1-lens-mask.png", "depthCm": 0}
   },
 
+  "anaglyph": {
+    "enabled": true,
+    "glasses": "red-cyan",
+    "eyeSeparationCm": 3,
+    "baseline": "2.png",
+    "layers": ["1.png"],
+    "spheres": true
+  },
+
   "layers": [
     {"file": "1.png",         "depthCm": 0, "opacityPercent": 70, "blend": "multiply"},
     {"file": "2.png",         "depthCm": 5, "opacityPercent": 20, "blend": "normal", "mask": "lenses", "show": "inside"},
