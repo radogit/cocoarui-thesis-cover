@@ -1,9 +1,14 @@
 import './index.css'
 import {bookPortalComponent, anaglyphState} from './book-portal'
 import {imageTargets} from './targets'
+import {wantsPreview, setupPreview, portalPreviewComponent} from './portal-preview'
 
 // Register before the scene initializes (bundle.js is loaded with defer in <head>).
 AFRAME.registerComponent('book-portal', bookPortalComponent)
+AFRAME.registerComponent('portal-preview', portalPreviewComponent)
+
+// Desktop: show the portal on its own instead of the "open on your phone" page (see portal-preview.js).
+if (wantsPreview()) setupPreview()
 
 const onxrloaded = () => {
   XR8.XrController.configure({imageTargetData: imageTargets})

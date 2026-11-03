@@ -25,6 +25,29 @@ disable). The input file is never modified. The script writes into `src/targets/
 Restart `npm run serve` afterwards. **Don't copy a cover image over `book-cover.jpg` by hand.** It must be the
 480×640 crop that this script produces.
 
+## Desktop preview
+
+On a desktop browser the app skips AR (and 8th Wall's "open on your phone" QR page) and shows a book
+portal on its own, full page, as seen from the reading distance (`viewingDistanceCm`), fitted to the window,
+without the border. Moving the mouse shifts the viewpoint a little to show the depth. The stereoscopic button
+works here too.
+
+- `?cover=book-cover-back` shows the back cover (default: the front).
+- `?mode=preview` / `?mode=ar` force either mode (e.g. `?mode=ar` to get the QR page on a desktop).
+
+Optional, per cover in `layers.json`:
+
+```json
+"preview": {"fit": "contain", "background": "#000000", "parallaxCm": 6, "marginPercent": 0}
+```
+
+| key | meaning |
+|---|---|
+| `fit` | `contain` = whole cover visible (bars beside it on wide windows); `cover` = fill the window (cover cropped) |
+| `background` | colour around the cover |
+| `parallaxCm` | how far the viewpoint moves with the mouse (0 = fixed) |
+| `marginPercent` | extra space around the cover with `contain` |
+
 ## More image targets (e.g. the back cover)
 
 Each target is its own portal with its own config:

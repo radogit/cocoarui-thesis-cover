@@ -128,6 +128,7 @@ export const bookPortalComponent = {
   schema: {
     coverHeightMeters: {default: 0.24},  // real height of the printed cover; sets the physical scale
     layers: {default: 'assets/layers/layers.json'},  // inner-world + sphere config; '' = defaults only
+    preview: {default: false},           // desktop preview (no AR): no border around the cover
     innerColor: {default: '#383DAA'},    // used only if layers.json has no innerColor
     tunnelDepth: {default: 1.2},         // portal depth in crop heights, used only when there are no layers
     // Only used with "gravity": true:
@@ -225,6 +226,7 @@ export const bookPortalComponent = {
 
   buildPortal(cfg, cfgUrl) {
     const THREE = this.THREE
+    this.cfg = cfg
     const w = this.coverW
     const h = this.coverH
     const cm = v => (v / 100) * this.localPerMeter()  // centimeters -> local units
@@ -310,7 +312,7 @@ export const bookPortalComponent = {
     // 1b) Border: a flat frame lying on the cover plane, just OUTSIDE the tracked image edge.
     //     Settings come from layers.json "border": {thicknessCm, opacityPercent, color}.
     const border = cfg.border || {}
-    const t = cm(border.thicknessCm != null ? border.thicknessCm : 0)
+    const t = this.data.preview ? 0 : cm(border.thicknessCm != null ? border.thicknessCm : 0)
     if (t > 0) {
       const bOpacity = border.opacityPercent != null ? border.opacityPercent / 100 : 1
       const borderMat = new THREE.MeshBasicMaterial({
