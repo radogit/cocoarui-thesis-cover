@@ -18,7 +18,7 @@
     "spheres": true
   },
   
-  "preview": {"fit": "contain", "background": "#000000", "parallaxCm": 100, "marginPercent": 10},
+  "preview": {"fit": "contain", "background": "#000000", "parallaxCm": 0, "marginPercent": 10},
   
   "layers": [
     {"file": "1.png",         "depthCm": 0, "opacityPercent": 70, "blend": "multiply"},
@@ -27,7 +27,7 @@
   ],
 
   "spheres": {
-    "maxSpheres": 1400,
+    "maxSpheres": 40,
     "radiusCm": [0.5, 1.5],
     "speedCmPerS": 40,
     "lifetimeS": 3.2,
