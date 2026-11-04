@@ -17,7 +17,9 @@
     "layers": ["1.png"],
     "spheres": true
   },
-
+  
+  "preview": {"fit": "contain", "background": "#000000", "parallaxCm": 100, "marginPercent": 10},
+  
   "layers": [
     {"file": "1.png",         "depthCm": 0, "opacityPercent": 70, "blend": "multiply"},
     {"file": "2.png",         "depthCm": 5, "opacityPercent": 80, "blend": "normal", "mask": "lenses", "show": "inside"},
@@ -25,22 +27,22 @@
   ],
 
   "spheres": {
-    "maxSpheres": 140,
+    "maxSpheres": 1400,
     "radiusCm": [0.5, 1.5],
     "speedCmPerS": 40,
     "lifetimeS": 3.2,
     "fadeS": 0.7,
     "opacityPercent": [30, 60],
-    "colors": ["#8A5CFF", "#E040FB", "#FF6EC7", "#40C4FF", "#7C4DFF"],
+    "colors": ["#ffffff", "#fefe33", "#FF6EC7", "#40C4FF", "#7C4DFF", "#7cfc00"],
     "streams": [
-      {"name": "left lens",  "originCmX": -5.5, "originCmY": 2, "spawnRate": 5},
-      {"name": "right lens", "originCmX": 6.1,  "originCmY": 2, "spawnRate": 5}
+      {"name": "left lens",  "originCmX": -4.5, "originCmY": 3, "spawnRate": 5},
+      {"name": "right lens", "originCmX": 6.5,  "originCmY": 3, "spawnRate": 5}
     ],
     "spawnRangeCmX": 0,
     "spawnRangeCmY": 0,
     "aim": "straight",
     "spreadDegX": 3,
-    "spreadDegY": 5,
+    "spreadDegY": 7,
     "spawnDepthCm": 55,
     "gravity": false,
     "mask": "lenses",
