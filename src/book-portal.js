@@ -42,6 +42,8 @@ const SPHERE_DEFAULTS = {
   spawnRangeCmY: 0,          // or [min, max] (negative = left/down). Same for up/down.
   aim: 'straight',           // 'straight' = perpendicular out of the cover (toward a viewer facing it head-on),
                              // 'camera' = toward the phone's current position
+  aimDegX: 0,                // fixed tilt of the aim direction: + = right, - = left
+  aimDegY: 0,                // fixed tilt of the aim direction: + = up, - = down
   spreadDegX: 3,             // max random deviation left/right from the aim direction
   spreadDegY: 3,             // max random deviation up/down
   spawnDepthCm: null,        // vanishing point depth behind the cover; null = 1 cm in front of the deepest layer
@@ -592,6 +594,9 @@ export const bookPortalComponent = {
       this.portalRoot.worldToLocal(this.tmp)
       if (this.tmp.z > 0) dir.subVectors(this.tmp, start).normalize()
     }
+    // Fixed tilt: left/right (about Y; + = right), then up/down (about X; + = up).
+    dir.applyAxisAngle(this.axisY, sp.aimDegX * DEG)
+    dir.applyAxisAngle(this.axisX, -sp.aimDegY * DEG)
     // Random deviation within the arc: left/right (about Y), then up/down (about X).
     dir.applyAxisAngle(this.axisY, (Math.random() * 2 - 1) * sp.spreadDegX * DEG)
     dir.applyAxisAngle(this.axisX, (Math.random() * 2 - 1) * sp.spreadDegY * DEG)

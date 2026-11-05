@@ -27,22 +27,24 @@
   ],
 
   "spheres": {
-    "maxSpheres": 40,
+    "maxSpheres": 200,
     "radiusCm": [0.5, 1.5],
-    "speedCmPerS": 40,
-    "lifetimeS": 3.2,
+    "speedCmPerS": 20,
+    "lifetimeS": 6,
     "fadeS": 0.7,
     "opacityPercent": [30, 60],
-    "colors": ["#ffffff", "#fefe33", "#FF6EC7", "#40C4FF", "#7C4DFF", "#7cfc00"],
+    "colors": ["#ffffff", "#ffffff", "#ffffff", "#fefe33", "#FF6EC7", "#40C4FF", "#7C4DFF", "#7cfc00"],
     "streams": [
-      {"name": "left lens",  "originCmX": -4.5, "originCmY": 3, "spawnRate": 5},
-      {"name": "right lens", "originCmX": 6.5,  "originCmY": 3, "spawnRate": 5}
+      {"name": "left lens",  "originCmX": 0, "originCmY": 2, "spawnRate": 5, "aimDegX": 6},
+      {"name": "right lens", "originCmX": 0,  "originCmY": 2, "spawnRate": 5, "aimDegX": -6}
     ],
     "spawnRangeCmX": 0,
     "spawnRangeCmY": 0,
     "aim": "straight",
+    "aimDegX": 0,
+    "aimDegY": 0,
     "spreadDegX": 3,
-    "spreadDegY": 7,
+    "spreadDegY": 5,
     "spawnDepthCm": 55,
     "gravity": false,
     "mask": "lenses",
