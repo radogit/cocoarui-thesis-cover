@@ -24,6 +24,9 @@ const DEG = Math.PI / 180
 // Defaults for the "spheres" section of layers.json.
 const SPHERE_DEFAULTS = {
   spawnRate: 3,              // spheres per second while the cover is tracked
+  firstSpawnDelay: 0,        // seconds before a stream's first sphere (at start and after R); staggers streams
+  spawnRateVariability: 0,   // 0..1: each gap between spheres varies randomly by up to ± this share
+                             // (0.3 = 70%..130% of the average gap); the average rate stays spawnRate
   maxSpheres: 40,
   radiusCm: 1.5,             // sphere radius; a number, or [min, max] for a random size per sphere
   speedCmPerS: 40,
@@ -292,7 +295,7 @@ export const bookPortalComponent = {
     this.streams = (Array.isArray(streams) && streams.length ? streams : [{}]).map(st => {
       const merged = {...shared, ...st}
       merged.spawnDepth = st.spawnDepthCm != null ? cm(st.spawnDepthCm) : this.spawnDepth
-      merged.acc = 0  // spawn accumulator
+      merged.wait = this.firstWait(merged)  // seconds until this stream's next sphere
       return merged
     })
     const deepestSpawn = Math.max(...this.streams.map(st => st.spawnDepth))
@@ -772,9 +775,9 @@ export const bookPortalComponent = {
       this.updateGround()
 
       for (const st of this.streams) {
-        st.acc += dt * st.spawnRate
-        while (st.acc >= 1) {
-          st.acc -= 1
+        st.wait -= dt  // counts only while the cover is tracked
+        while (st.wait <= 0) {
+          st.wait += this.nextGap(st)
           if (this.spheres.length >= sp.maxSpheres) this.removeSphere(0)  // oldest
           this.spawnSphere(st)
         }
@@ -947,7 +950,19 @@ export const bookPortalComponent = {
   // Remove every sphere and restart the spawn timers, as if the cover had just been found.
   resetSpheres() {
     while (this.spheres.length) this.removeSphere(0)
-    for (const st of this.streams || []) st.acc = 0
+    for (const st of this.streams || []) st.wait = this.firstWait(st)
+  },
+
+  // Seconds before a stream's first sphere.
+  firstWait(st) {
+    return st.spawnRate > 0 ? Math.max(0, Number(st.firstSpawnDelay) || 0) : Infinity
+  },
+
+  // Seconds between two spheres of a stream: 1 / spawnRate, varied by up to ± spawnRateVariability.
+  nextGap(st) {
+    if (!(st.spawnRate > 0)) return Infinity
+    const v = Math.min(1, Math.max(0, Number(st.spawnRateVariability) || 0))
+    return Math.max(0.001, (1 / st.spawnRate) * (1 + (Math.random() * 2 - 1) * v))
   },
 
   remove() {

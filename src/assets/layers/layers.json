@@ -28,15 +28,15 @@
 
   "spheres": {
     "maxSpheres": 200,
-    "radiusCm": [0.5, 1.5],
-    "speedCmPerS": 20,
-    "lifetimeS": 6,
+    "radiusCm": [0.4, 1.2],
+    "speedCmPerS": 10,
+    "lifetimeS": 12,
     "fadeS": 0.7,
     "opacityPercent": [30, 60],
-    "colors": ["#ffffff", "#ffffff", "#ffffff", "#fefe33", "#FF6EC7", "#40C4FF", "#7C4DFF", "#7cfc00"],
+    "colors": ["#ffffff", "#ffffff", "#ffffff", "#fefe33", "#FF6EC7", "#40C4FF", "#7C4DFF"],
     "streams": [
-      {"name": "left lens",  "originCmX": 0, "originCmY": 2, "spawnRate": 5, "aimDegX": 6},
-      {"name": "right lens", "originCmX": 0,  "originCmY": 2, "spawnRate": 5, "aimDegX": -6}
+      {"name": "left lens",  "originCmX": 0, "originCmY": 2.5, "spawnRate": 2, "aimDegX": 6},
+      {"name": "right lens", "originCmX": 0,  "originCmY": 2.5, "spawnRate": 2, "aimDegX": -6, "firstSpawnDelay": 0.5, "spawnRateVariability": 0.5}
     ],
     "spawnRangeCmX": 0,
     "spawnRangeCmY": 0,

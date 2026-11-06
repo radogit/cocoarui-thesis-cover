@@ -187,6 +187,8 @@ then fade and disappear.
 | key | default | meaning |
 |---|---|---|
 | `spawnRate` | 3 | spheres per second while the cover is tracked |
+| `firstSpawnDelay` | 0 | seconds before the stream's first sphere (at start and after pressing R). Give two streams different values to stagger them |
+| `spawnRateVariability` | 0 | 0–1: each gap between spheres varies randomly by up to ± this share (0.3 = 70–130% of the average gap); the average rate stays `spawnRate` |
 | `maxSpheres` | 40 | the oldest is removed beyond this |
 | `radiusCm` | 1.5 | sphere radius; a number, or `[min, max]` for a random size per sphere |
 | `speedCmPerS` | 40 | ±15% random per sphere |
