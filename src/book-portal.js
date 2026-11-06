@@ -145,6 +145,9 @@ export const bookPortalComponent = {
     const THREE = AFRAME.THREE
     this.THREE = THREE
     this.spheres = []
+    // R key (app.js): clear all spheres and start spawning from scratch.
+    this.onReset = () => this.resetSpheres()
+    window.addEventListener('book-portal-reset', this.onReset)
     this.groundY = null
     this.groundCenter = new THREE.Vector3()
     this.worldQuat = new THREE.Quaternion()
@@ -257,6 +260,11 @@ export const bookPortalComponent = {
         layers: new Set(ana.layers || []),
         spheres: ana.spheres !== false,
         rightChannels: ana.glasses === 'red-blue' ? [false, false, true] : [false, true, true],
+      }
+      for (const f of this.ana.layers) {
+        if (!layers.some(l => l.file === f)) {
+          console.warn(`[book-portal] anaglyph layer "${f}" is not in "layers"; it gets no 3D effect`)
+        }
       }
       this.anaUniforms = {
         uAnaN: {value: new THREE.Vector3(0, 0, 1)}, uAnaD: {value: 0}, uAnaHalf: {value: 0},
@@ -426,7 +434,9 @@ export const bookPortalComponent = {
     // 3) Cover layers, back to front. Layer i gets renderOrder 2i+1; spheres get the even numbers
     //    in between, according to their depth, so they appear between the right layers.
     layers.forEach((layer, i) => {
-      const s = layer.scale != null ? layer.scale : this.depthScale(layer.z)
+      // scalePercent enlarges/shrinks the layer around the cover's centre, on top of the depth scaling.
+      const s = (layer.scale != null ? layer.scale : this.depthScale(layer.z)) *
+        (layer.scalePercent != null ? layer.scalePercent / 100 : 1)
       let opacity = 1
       if (layer.opacityPercent != null) opacity = layer.opacityPercent / 100
       else if (layer.opacity != null) opacity = layer.opacity
@@ -435,6 +445,11 @@ export const bookPortalComponent = {
         depthWrite: false,   // layers don't hide each other by depth; draw order does that
         opacity,
         toneMapped: false,   // show the artwork's colors as they are
+        // A layer on the cover plane is level with the invisible occluder around the hole: push it a hair
+        // back so the occluder hides any part of it outside the hole (e.g. a wider image's bleed).
+        polygonOffset: true,
+        polygonOffsetFactor: 1,
+        polygonOffsetUnits: 1,
       })
       const blend = (layer.blend || 'normal').toLowerCase()
       const mode = BLEND_MODES[blend]
@@ -483,9 +498,17 @@ export const bookPortalComponent = {
         else tex.encoding = THREE.sRGBEncoding
         tex.anisotropy = maxAniso  // keeps layers sharp when seen at an angle
         const {width: iw, height: ih} = tex.image
-        if (Math.abs(iw / ih - w / h) > 0.02 * (w / h)) {
-          console.warn(`[book-portal] layer ${layer.file} is ${iw}x${ih}; its aspect ratio does not match ` +
-            'the cover. Export every layer on the same canvas as the cover, or it will be stretched.')
+        // Image proportions differ from the cover: "fit": "cover" (default) scales the image to fill the
+        // frame, keeping its proportions; the overflow (bleed) sticks out past the cover edge, centred,
+        // where the occluder hides it. It shows up only when needed, e.g. when the anaglyph copies shift
+        // sideways or the cover is seen at an angle. "stretch" distorts the image to the frame instead.
+        const imgAspect = iw / ih
+        const frameAspect = w / h
+        const fit = (layer.fit || 'cover').toLowerCase()
+        if (fit === 'cover') {
+          mesh.scale.set(Math.max(1, imgAspect / frameAspect), Math.max(1, frameAspect / imgAspect), 1)
+        } else if (fit !== 'cover' && fit !== 'stretch') {
+          console.warn(`[book-portal] "fit" for ${layer.file} must be "cover" or "stretch"; using stretch`)
         }
         if (Math.max(iw, ih) > 2048) {
           console.warn(`[book-portal] layer ${layer.file} is ${iw}x${ih}. Layers over 2048 px use a lot of ` +
@@ -921,7 +944,14 @@ export const bookPortalComponent = {
     }
   },
 
+  // Remove every sphere and restart the spawn timers, as if the cover had just been found.
+  resetSpheres() {
+    while (this.spheres.length) this.removeSphere(0)
+    for (const st of this.streams || []) st.acc = 0
+  },
+
   remove() {
+    window.removeEventListener('book-portal-reset', this.onReset)
     while (this.spheres.length) this.removeSphere(0)
     this.el.object3D.remove(this.portalRoot)
     this.el.sceneEl.object3D.remove(this.shadowPlane)

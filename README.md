@@ -101,6 +101,8 @@ Put the images in `src/assets/layers/`. **Export every layer on the same canvas 
 | `depthCm` | distance behind the cover surface; 0 = on the cover, negative = in front of it. List order doesn't matter |
 | `opacityPercent` | 0–100, like a layer's opacity in Photoshop/Affinity |
 | `blend` | `normal`, `multiply` or `screen`, as in Photoshop/Affinity. The blend applies to what's drawn behind the layer (deeper layers, spheres, the inner colour) |
+| `fit` | optional; what to do when the image's proportions differ from the cover's. `cover` (default) = scale it to fill the cover, keeping its proportions; the extra (bleed) sticks out past the cover edges, centred, and is hidden by the portal opening, but shows when the anaglyph copies shift or the cover is seen at an angle; `stretch` = distort it to the cover's shape |
+| `scalePercent` | optional; enlarges (> 100) or shrinks (< 100) the image around the cover's centre, on top of the automatic depth scaling. Default 100 |
 | `scale` | optional; overrides the automatic depth scaling |
 | `mask` | optional; name of a mask from `"masks"` (see below) |
 | `show` | with `mask`: `inside` = visible only where the mask is, `outside` = visible everywhere except there |

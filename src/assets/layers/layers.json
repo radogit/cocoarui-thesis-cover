@@ -14,16 +14,16 @@
     "glasses": "red-cyan",
     "eyeSeparationCm": 3,
     "baseline": "2.png",
-    "layers": ["1.png"],
+    "layers": ["1wider.png"],
     "spheres": true
   },
   
   "preview": {"fit": "contain", "background": "#000000", "parallaxCm": 0, "marginPercent": 10},
   
   "layers": [
-    {"file": "1.png",         "depthCm": 0, "opacityPercent": 70, "blend": "multiply"},
-    {"file": "2.png",         "depthCm": 5, "opacityPercent": 80, "blend": "normal", "mask": "lenses", "show": "inside"},
-    {"file": "2-blurred.png", "depthCm": 5, "opacityPercent": 60, "blend": "normal", "mask": "lenses", "show": "outside"}
+    {"file": "1wider.png",    "depthCm": 0.3, "opacityPercent": 60, "blend": "multiply", "scalePercent": 100},
+    {"file": "2.png",         "depthCm": 8, "opacityPercent": 80, "blend": "normal", "mask": "lenses", "show": "inside"},
+    {"file": "2-blurred.png", "depthCm": 8, "opacityPercent": 60, "blend": "normal", "mask": "lenses", "show": "outside"}
   ],
 
   "spheres": {

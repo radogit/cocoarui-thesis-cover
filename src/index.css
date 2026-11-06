@@ -38,3 +38,9 @@
   background: rgba(255, 255, 255, 0.95);  /* on: solid */
   border-color: #0a4bd6;
 }
+
+/* Toggled with the C key (app.js). */
+.hide-cursor, .hide-cursor * { cursor: none !important; }
+
+/* Toggled with the B key (app.js). */
+.hide-hud #anaglyphToggle { visibility: hidden; }
